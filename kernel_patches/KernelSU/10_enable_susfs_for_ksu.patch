@@ -166,13 +166,8 @@ index 66929756..1e9ce687 100644
 -ccflags-y += -DKSU_COMPAT_HAS_SELINUX_STATE
 -endif
 -
- # This feature was introduced in linux 5.0-rc1
- ifeq ($(shell grep -q "get_cred_rcu" $(srctree)/include/linux/cred.h; echo $$?),0)
- ccflags-y += -DKSU_GET_CRED_RCU
- else
- $(info -- Your kernel does not have get_cred_rcu, please backport it.)
- $(info -- How to backport: https://github.com/tiann/KernelSU/pull/2320#issuecomment-2564232958)
- $(info -- Fallback to old changes.)
+ ifndef KSU_EXPECTED_SIZE
+ KSU_EXPECTED_SIZE := 0x033b
  endif
 @@ -56,14 +48,69 @@ $(info -- KernelSU Manager signature hash: $(KSU_EXPECTED_HASH))
  ccflags-y += -DEXPECTED_SIZE=$(KSU_EXPECTED_SIZE)
@@ -316,8 +311,7 @@ index ba8b73f2..9af28285 100644
 +	return (check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH) ||
 +			check_v2_signature(path, 384, "7e0c6d7278a3bb8e364e0fcba95afaf3666cf5ff3c245a3b63c8833bd0445cc4")); // 5ec1cff
 +#else
- 	return (check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH) ||
-		check_v2_signature(path, EXPECTED_SIZE_CUST, EXPECTED_HASH_CUST));
+ 	return check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH);
 +#endif
  }
 \ No newline at end of file
@@ -334,7 +328,7 @@ index bed501c4..e02aa514 100644
  
  #endif
 diff --git a/kernel/core_hook.c b/kernel/core_hook.c
-index 009216ef..8d0d502b 100644
+index 009216ef..23c96053 100644
 --- a/kernel/core_hook.c
 +++ b/kernel/core_hook.c
 @@ -33,6 +33,10 @@
@@ -850,14 +844,15 @@ index 009216ef..8d0d502b 100644
  	if (!is_appuid(new_uid) || is_unsupported_uid(new_uid.val)) {
  		// pr_info("handle setuid ignore non application or isolated uid: %d\n", new_uid.val);
  		return 0;
-@@ -512,7 +898,16 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
+@@ -512,7 +898,17 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
  		// pr_info("handle setuid ignore allowed application: %d\n", new_uid.val);
  		return 0;
  	}
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +	else {
-+		// if new uid is not root granted, then drop a payload to inidicate that sus_path will be effective on this uid
-+		new->user->android_kabi_reserved2 |= USER_STRUCT_KABI2_NON_ROOT_USER_APP_PROFILE;
++		task_lock(current);
++		current->susfs_task_state |= TASK_STRUCT_NON_ROOT_USER_APP_PROC;
++		task_unlock(current);
 +	}
 +#endif
  
@@ -867,7 +862,7 @@ index 009216ef..8d0d502b 100644
  	if (!ksu_uid_should_umount(new_uid.val)) {
  		return 0;
  	} else {
-@@ -521,31 +916,39 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
+@@ -521,31 +917,39 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
  #endif
  	}
  
