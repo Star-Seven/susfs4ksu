@@ -620,7 +620,7 @@ index d772fe46e6b5..57bd073fd286 100644
 +	// q->mnt.android_kabi_reserved4 -> original mnt_id
 +	// q->mnt_id -> will be modified to the fake mnt_id
 +
-+	// Here We are only interested in processes of which original mnt namespace belongs to zygote 
++	// Here We are only interested in processes of which original mnt namespace belongs to zygote
 +	// Also we just make use of existing 'q' mount pointer, no need to delcare extra mount pointer
 +	if (is_zygote_pid) {
 +		last_entry_mnt_id = list_first_entry(&new_ns->list, struct mount, mnt_list)->mnt_id;
@@ -755,7 +755,7 @@ index b00f1a9d21ad..aac4c49f21e8 100644
 +#ifdef CONFIG_KSU_SUSFS_SUS_OVERLAYFS
 +	ovl_path_lowerdata(file->f_path.dentry, &realpath);
 +	if (likely(realpath.mnt && realpath.dentry)) {
-+		// We still use '__OVL_PATH_UPPER' here which should be fine.  
++		// We still use '__OVL_PATH_UPPER' here which should be fine. 
 +		type = __OVL_PATH_UPPER;
 +		goto bypass_orig_flow;
 +	}
