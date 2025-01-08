@@ -444,14 +444,15 @@ diff --git a/fs/namespace.c b/fs/namespace.c
 index d772fe46e6b5..870ff9ce92a7 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
-@@ -27,10 +27,30 @@
- #include <linux/bootmem.h>
+@@ -28,11 +28,31 @@
  #include <linux/task_work.h>
  #include <linux/sched/task.h>
+ #include <linux/fslog.h>
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +#include <linux/susfs_def.h>
 +#endif
  
+ #include <linux/slub_def.h>
  #include "pnode.h"
  #include "internal.h"
  
@@ -475,7 +476,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  /* Maximum number of mounts in a mount namespace */
  unsigned int sysctl_mount_max __read_mostly = 100000;
  
-@@ -120,6 +140,20 @@ static int mnt_alloc_id(struct mount *mnt)
+@@ -181,6 +201,20 @@
  static void mnt_free_id(struct mount *mnt)
  {
  	int id = mnt->mnt_id;
@@ -496,7 +497,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  	spin_lock(&mnt_id_lock);
  	ida_remove(&mnt_id_ida, id);
  	if (mnt_id_start > id)
-@@ -127,6 +161,14 @@ static void mnt_free_id(struct mount *mnt)
+@@ -188,6 +222,14 @@
  	spin_unlock(&mnt_id_lock);
  }
  
@@ -511,7 +512,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  /*
   * Allocate a new peer group ID
   *
-@@ -154,6 +196,14 @@ static int mnt_alloc_group_id(struct mount *mnt)
+@@ -215,6 +257,14 @@
  void mnt_release_group_id(struct mount *mnt)
  {
  	int id = mnt->mnt_group_id;
@@ -526,7 +527,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  	ida_remove(&mnt_group_ida, id);
  	if (mnt_group_start > id)
  		mnt_group_start = id;
-@@ -1065,6 +1115,14 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void
+@@ -1124,6 +1174,14 @@
  	mnt->mnt.mnt_sb = root->d_sb;
  	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
  	mnt->mnt_parent = mnt;
@@ -541,7 +542,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  	lock_mount_hash();
  	list_add_tail(&mnt->mnt_instance, &root->d_sb->s_mounts);
  	unlock_mount_hash();
-@@ -1146,6 +1204,14 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
+@@ -1206,6 +1264,14 @@
  	mnt->mnt.mnt_root = dget(root);
  	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
  	mnt->mnt_parent = mnt;
@@ -556,7 +557,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  	lock_mount_hash();
  	list_add_tail(&mnt->mnt_instance, &sb->s_mounts);
  	unlock_mount_hash();
-@@ -2022,6 +2088,17 @@ static int invent_group_ids(struct mount *mnt, bool recurse)
+@@ -2092,6 +2158,17 @@
  {
  	struct mount *p;
  
@@ -574,7 +575,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  	for (p = mnt; p; p = recurse ? next_mnt(p, mnt) : NULL) {
  		if (!p->mnt_group_id && !IS_MNT_SHARED(p)) {
  			int err = mnt_alloc_group_id(p);
-@@ -2364,6 +2441,24 @@ static int do_loopback(struct path *path, const char *old_name,
+@@ -2446,6 +2523,24 @@
  		umount_tree(mnt, UMOUNT_SYNC);
  		unlock_mount_hash();
  	}
@@ -599,7 +600,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  out2:
  	unlock_mount(mp);
  out:
-@@ -2963,6 +3058,13 @@ long do_mount(const char *dev_name, const char __user *dir_name,
+@@ -3042,6 +3137,13 @@
  	else
  		retval = do_new_mount(&path, type_page, sb_flags, mnt_flags,
  				      dev_name, data_page);
@@ -613,7 +614,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  dput_out:
  	path_put(&path);
  	return retval;
-@@ -3040,6 +3142,10 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
+@@ -3119,6 +3221,10 @@
  	struct mount *old;
  	struct mount *new;
  	int copy_flags;
@@ -624,7 +625,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  
  	BUG_ON(!ns);
  
-@@ -3059,6 +3165,13 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
+@@ -3138,6 +3244,19 @@
  	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
  	if (user_ns != ns->user_ns)
  		copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;
@@ -634,11 +635,17 @@ index d772fe46e6b5..870ff9ce92a7 100644
 +		copy_flags |= CL_SUSFS_COPY_MNT_NS;
 +	}
 +#endif
++	+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++	if (is_zygote_pid) {
++		// Let clone_mnt() in copy_tree() know we only interested in function called by copy_mnt_ns()
++		copy_flags |= CL_SUSFS_COPY_MNT_NS;
++	}
++#endif
 +
  	new = copy_tree(old, old->mnt.mnt_root, copy_flags);
  	if (IS_ERR(new)) {
  		namespace_unlock();
-@@ -3095,6 +3208,29 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
+@@ -3174,6 +3293,29 @@
  		while (p->mnt.mnt_root != q->mnt.mnt_root)
  			p = next_mnt(p, old);
  	}
@@ -664,14 +671,16 @@ index d772fe46e6b5..870ff9ce92a7 100644
 +	// Or should we put a lock here?
 +	current->susfs_last_fake_mnt_id = last_entry_mnt_id;
 +#endif
-+
++	
  	namespace_unlock();
  
  	if (rootmnt)
-@@ -3635,3 +3771,37 @@ const struct proc_ns_operations mntns_operations = {
+@@ -3720,4 +3862,38 @@
+ 	.put		= mntns_put,
  	.install	= mntns_install,
  	.owner		= mntns_owner,
- };
+-};
++};
 +
 +#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
 +extern void susfs_try_umount_all(uid_t uid);
