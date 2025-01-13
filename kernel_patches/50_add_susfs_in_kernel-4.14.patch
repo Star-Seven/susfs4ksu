@@ -104,14 +104,14 @@ index 6de9adda11be..393010b1418f 100644
  		return;
  
 diff --git a/fs/namei.c b/fs/namei.c
-index 69f96d3fa1e6..be2c63f9b115 100644
+index 69f96d3fa1e6..3af68b07fc18 100644
 --- a/fs/namei.c
 +++ b/fs/namei.c
 @@ -39,6 +39,9 @@
  #include <linux/bitops.h>
  #include <linux/init_task.h>
  #include <linux/uaccess.h>
-+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
++#if defined(CONFIG_KSU_SUSFS_SUS_PATH) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
 +#include <linux/susfs_def.h>
 +#endif
  
@@ -383,16 +383,19 @@ index 69f96d3fa1e6..be2c63f9b115 100644
  	return filp;
  }
 diff --git a/fs/namespace.c b/fs/namespace.c
-index d772fe46e6b5..870ff9ce92a7 100644
+index d772fe46e6b5..f045e8a2b643 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
-@@ -28,11 +28,31 @@
+@@ -27,12 +27,34 @@
+ #include <linux/bootmem.h>
  #include <linux/task_work.h>
  #include <linux/sched/task.h>
- #include <linux/fslog.h>
-+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++
++#if defined(CONFIG_KSU_SUSFS_SUS_MOUNT) || defined(CONFIG_KSU_SUSFS_TRY_UMOUNT)
 +#include <linux/susfs_def.h>
 +#endif
++
+ #include <linux/fslog.h>
  
  #include <linux/slub_def.h>
  #include "pnode.h"
@@ -418,7 +421,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  /* Maximum number of mounts in a mount namespace */
  unsigned int sysctl_mount_max __read_mostly = 100000;
  
-@@ -181,6 +201,20 @@
+@@ -181,6 +203,20 @@
  static void mnt_free_id(struct mount *mnt)
  {
  	int id = mnt->mnt_id;
@@ -439,7 +442,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  	spin_lock(&mnt_id_lock);
  	ida_remove(&mnt_id_ida, id);
  	if (mnt_id_start > id)
-@@ -188,6 +222,14 @@
+@@ -188,6 +224,14 @@
  	spin_unlock(&mnt_id_lock);
  }
  
@@ -454,7 +457,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  /*
   * Allocate a new peer group ID
   *
-@@ -215,6 +257,14 @@
+@@ -215,6 +259,14 @@
  void mnt_release_group_id(struct mount *mnt)
  {
  	int id = mnt->mnt_group_id;
@@ -469,7 +472,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  	ida_remove(&mnt_group_ida, id);
  	if (mnt_group_start > id)
  		mnt_group_start = id;
-@@ -1124,6 +1174,14 @@
+@@ -1124,6 +1176,14 @@
  	mnt->mnt.mnt_sb = root->d_sb;
  	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
  	mnt->mnt_parent = mnt;
@@ -484,7 +487,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  	lock_mount_hash();
  	list_add_tail(&mnt->mnt_instance, &root->d_sb->s_mounts);
  	unlock_mount_hash();
-@@ -1206,6 +1264,14 @@
+@@ -1206,6 +1266,14 @@
  	mnt->mnt.mnt_root = dget(root);
  	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
  	mnt->mnt_parent = mnt;
@@ -499,7 +502,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  	lock_mount_hash();
  	list_add_tail(&mnt->mnt_instance, &sb->s_mounts);
  	unlock_mount_hash();
-@@ -2092,6 +2158,17 @@
+@@ -2092,6 +2160,17 @@
  {
  	struct mount *p;
  
@@ -517,7 +520,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  	for (p = mnt; p; p = recurse ? next_mnt(p, mnt) : NULL) {
  		if (!p->mnt_group_id && !IS_MNT_SHARED(p)) {
  			int err = mnt_alloc_group_id(p);
-@@ -2446,6 +2523,24 @@
+@@ -2446,6 +2525,24 @@
  		umount_tree(mnt, UMOUNT_SYNC);
  		unlock_mount_hash();
  	}
@@ -542,7 +545,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  out2:
  	unlock_mount(mp);
  out:
-@@ -3042,6 +3137,13 @@
+@@ -3042,6 +3139,13 @@
  	else
  		retval = do_new_mount(&path, type_page, sb_flags, mnt_flags,
  				      dev_name, data_page);
@@ -556,7 +559,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  dput_out:
  	path_put(&path);
  	return retval;
-@@ -3119,6 +3221,10 @@
+@@ -3119,6 +3223,10 @@
  	struct mount *old;
  	struct mount *new;
  	int copy_flags;
@@ -567,7 +570,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  
  	BUG_ON(!ns);
  
-@@ -3138,6 +3244,13 @@
+@@ -3138,6 +3246,13 @@
  	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
  	if (user_ns != ns->user_ns)
  		copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;
@@ -581,7 +584,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  	new = copy_tree(old, old->mnt.mnt_root, copy_flags);
  	if (IS_ERR(new)) {
  		namespace_unlock();
-@@ -3174,6 +3287,29 @@
+@@ -3174,6 +3289,29 @@
  		while (p->mnt.mnt_root != q->mnt.mnt_root)
  			p = next_mnt(p, old);
  	}
@@ -611,7 +614,7 @@ index d772fe46e6b5..870ff9ce92a7 100644
  	namespace_unlock();
  
  	if (rootmnt)
-@@ -3720,4 +3856,38 @@const struct proc_ns_operations mntns_operations = {
+@@ -3720,4 +3858,38 @@
  	.put		= mntns_put,
  	.install	= mntns_install,
  	.owner		= mntns_owner,
@@ -757,20 +760,20 @@ index e2244c134c9c..8746024a17ea 100644
  {
  	enum ovl_path_type type = ovl_path_type(dentry);
 diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
-index 403cbb12a6e9..450cc0d1f23b 100644
+index 403cbb12a6e9..7c3fad2cb84c 100644
 --- a/fs/proc/cmdline.c
 +++ b/fs/proc/cmdline.c
 @@ -4,8 +4,18 @@
  #include <linux/proc_fs.h>
  #include <linux/seq_file.h>
  
-+#ifdef KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
++#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
 +extern int susfs_spoof_cmdline_or_bootconfig(struct seq_file *m);
 +#endif
 +
  static int cmdline_proc_show(struct seq_file *m, void *v)
  {
-+#ifdef KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
++#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
 +	if (!susfs_spoof_cmdline_or_bootconfig(m)) {
 +		seq_putc(m, '\n');
 +		return 0;
