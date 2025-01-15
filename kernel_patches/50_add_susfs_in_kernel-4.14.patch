@@ -386,17 +386,14 @@ diff --git a/fs/namespace.c b/fs/namespace.c
 index d772fe46e6b5..f045e8a2b643 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
-@@ -27,12 +27,34 @@
- #include <linux/bootmem.h>
- #include <linux/task_work.h>
+@@ -29,10 +29,31 @@
  #include <linux/sched/task.h>
-+
+ #include <linux/fslog.h>
+ 
 +#if defined(CONFIG_KSU_SUSFS_SUS_MOUNT) || defined(CONFIG_KSU_SUSFS_TRY_UMOUNT)
 +#include <linux/susfs_def.h>
 +#endif
 +
- #include <linux/fslog.h>
- 
  #include <linux/slub_def.h>
  #include "pnode.h"
  #include "internal.h"
@@ -421,7 +418,7 @@ index d772fe46e6b5..f045e8a2b643 100644
  /* Maximum number of mounts in a mount namespace */
  unsigned int sysctl_mount_max __read_mostly = 100000;
  
-@@ -181,6 +203,20 @@
+@@ -181,6 +202,20 @@
  static void mnt_free_id(struct mount *mnt)
  {
  	int id = mnt->mnt_id;
@@ -442,7 +439,7 @@ index d772fe46e6b5..f045e8a2b643 100644
  	spin_lock(&mnt_id_lock);
  	ida_remove(&mnt_id_ida, id);
  	if (mnt_id_start > id)
-@@ -188,6 +224,14 @@
+@@ -188,6 +223,14 @@
  	spin_unlock(&mnt_id_lock);
  }
  
@@ -457,7 +454,7 @@ index d772fe46e6b5..f045e8a2b643 100644
  /*
   * Allocate a new peer group ID
   *
-@@ -215,6 +259,14 @@
+@@ -215,6 +258,14 @@
  void mnt_release_group_id(struct mount *mnt)
  {
  	int id = mnt->mnt_group_id;
@@ -472,7 +469,7 @@ index d772fe46e6b5..f045e8a2b643 100644
  	ida_remove(&mnt_group_ida, id);
  	if (mnt_group_start > id)
  		mnt_group_start = id;
-@@ -1124,6 +1176,14 @@
+@@ -1124,6 +1175,14 @@
  	mnt->mnt.mnt_sb = root->d_sb;
  	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
  	mnt->mnt_parent = mnt;
@@ -487,7 +484,7 @@ index d772fe46e6b5..f045e8a2b643 100644
  	lock_mount_hash();
  	list_add_tail(&mnt->mnt_instance, &root->d_sb->s_mounts);
  	unlock_mount_hash();
-@@ -1206,6 +1266,14 @@
+@@ -1206,6 +1265,14 @@
  	mnt->mnt.mnt_root = dget(root);
  	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
  	mnt->mnt_parent = mnt;
@@ -502,7 +499,7 @@ index d772fe46e6b5..f045e8a2b643 100644
  	lock_mount_hash();
  	list_add_tail(&mnt->mnt_instance, &sb->s_mounts);
  	unlock_mount_hash();
-@@ -2092,6 +2160,17 @@
+@@ -2092,6 +2159,17 @@
  {
  	struct mount *p;
  
@@ -520,7 +517,7 @@ index d772fe46e6b5..f045e8a2b643 100644
  	for (p = mnt; p; p = recurse ? next_mnt(p, mnt) : NULL) {
  		if (!p->mnt_group_id && !IS_MNT_SHARED(p)) {
  			int err = mnt_alloc_group_id(p);
-@@ -2446,6 +2525,24 @@
+@@ -2446,6 +2524,24 @@
  		umount_tree(mnt, UMOUNT_SYNC);
  		unlock_mount_hash();
  	}
@@ -545,7 +542,7 @@ index d772fe46e6b5..f045e8a2b643 100644
  out2:
  	unlock_mount(mp);
  out:
-@@ -3042,6 +3139,13 @@
+@@ -3042,6 +3138,13 @@
  	else
  		retval = do_new_mount(&path, type_page, sb_flags, mnt_flags,
  				      dev_name, data_page);
@@ -559,7 +556,7 @@ index d772fe46e6b5..f045e8a2b643 100644
  dput_out:
  	path_put(&path);
  	return retval;
-@@ -3119,6 +3223,10 @@
+@@ -3119,6 +3222,10 @@
  	struct mount *old;
  	struct mount *new;
  	int copy_flags;
@@ -570,7 +567,7 @@ index d772fe46e6b5..f045e8a2b643 100644
  
  	BUG_ON(!ns);
  
-@@ -3138,6 +3246,13 @@
+@@ -3138,6 +3245,13 @@
  	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
  	if (user_ns != ns->user_ns)
  		copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;
@@ -584,7 +581,7 @@ index d772fe46e6b5..f045e8a2b643 100644
  	new = copy_tree(old, old->mnt.mnt_root, copy_flags);
  	if (IS_ERR(new)) {
  		namespace_unlock();
-@@ -3174,6 +3289,29 @@
+@@ -3174,6 +3288,29 @@
  		while (p->mnt.mnt_root != q->mnt.mnt_root)
  			p = next_mnt(p, old);
  	}
@@ -614,7 +611,7 @@ index d772fe46e6b5..f045e8a2b643 100644
  	namespace_unlock();
  
  	if (rootmnt)
-@@ -3720,4 +3858,38 @@
+@@ -3720,4 +3857,38 @@
  	.put		= mntns_put,
  	.install	= mntns_install,
  	.owner		= mntns_owner,
@@ -763,14 +760,18 @@ diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
 index 403cbb12a6e9..7c3fad2cb84c 100644
 --- a/fs/proc/cmdline.c
 +++ b/fs/proc/cmdline.c
-@@ -4,8 +4,18 @@
+@@ -4,6 +4,9 @@
  #include <linux/proc_fs.h>
  #include <linux/seq_file.h>
- 
+ #include <asm/setup.h>
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
 +extern int susfs_spoof_cmdline_or_bootconfig(struct seq_file *m);
 +#endif
-+
+ 
+ enum {
+ 	FLAG_DELETE = 0,
+@@ -14,6 +17,12 @@
+ 
  static int cmdline_proc_show(struct seq_file *m, void *v)
  {
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
@@ -779,24 +780,25 @@ index 403cbb12a6e9..7c3fad2cb84c 100644
 +		return 0;
 +	}
 +#endif
- 	seq_printf(m, "%s\n", saved_command_line);
+ 	seq_puts(m, new_command_line);
+ 	seq_putc(m, '\n');
  	return 0;
- }
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
 index b8708a383b85..8c1508242988 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
-@@ -19,6 +19,9 @@
- #include <linux/shmem_fs.h>
- #include <linux/uaccess.h>
- #include <linux/mm_inline.h>
+@@ -22,7 +22,9 @@
+ #include <linux/ctype.h>
+ #include <linux/io_record.h>
+ #include <linux/freezer.h>
+-
 +#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
 +#include <linux/susfs_def.h>
 +#endif
- 
  #include <asm/elf.h>
  #include <asm/tlb.h>
-@@ -348,6 +351,10 @@ static void show_vma_header_prefix(struct seq_file *m,
+ #include <asm/tlbflush.h>
+@@ -378,6 +380,10 @@
  		   MAJOR(dev), MINOR(dev), ino);
  }
  
@@ -807,7 +809,7 @@ index b8708a383b85..8c1508242988 100644
  static void
  show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
  {
-@@ -362,8 +369,17 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
+@@ -392,8 +398,17 @@
  
  	if (file) {
  		struct inode *inode = file_inode(vma->vm_file);
@@ -900,20 +902,19 @@ index e6f4c7b8884b..82a2cc6a6edb 100644
  
  int iterate_dir(struct file *file, struct dir_context *ctx)
  {
-@@ -211,6 +215,12 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
+@@ -173,6 +177,11 @@
+ 	unsigned long d_ino;
  	int reclen = ALIGN(offsetof(struct linux_dirent, d_name) + namlen + 2,
  		sizeof(long));
- 
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +	if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) && susfs_sus_ino_for_filldir64(ino)) {
 +		return 0;
 +	}
 +#endif
-+
- 	buf->error = verify_dirent_name(name, namlen);
- 	if (unlikely(buf->error))
- 		return buf->error;
-@@ -300,6 +310,11 @@ static int filldir64(struct dir_context *ctx, const char *name, int namlen,
+ 
+ 	buf->error = -EINVAL;	/* only used if we fail.. */
+ 	if (reclen > buf->count)
+@@ -260,6 +269,12 @@
  	int reclen = ALIGN(offsetof(struct linux_dirent64, d_name) + namlen + 1,
  		sizeof(u64));
  
@@ -922,9 +923,10 @@ index e6f4c7b8884b..82a2cc6a6edb 100644
 +		return 0;
 +	}
 +#endif
- 	buf->error = verify_dirent_name(name, namlen);
- 	if (unlikely(buf->error))
- 		return buf->error;
++
+ 	buf->error = -EINVAL;	/* only used if we fail.. */
+ 	if (reclen > buf->count)
+ 		return -EINVAL;
 diff --git a/fs/stat.c b/fs/stat.c
 index 504e16e913db..4bf10e46df48 100644
 --- a/fs/stat.c
@@ -1059,19 +1061,22 @@ diff --git a/kernel/sys.c b/kernel/sys.c
 index 4dfc62c1b184..9b26007eeca5 100644
 --- a/kernel/sys.c
 +++ b/kernel/sys.c
-@@ -1182,12 +1182,18 @@ static int override_release(char __user *release, size_t len)
+
+@@ -1176,7 +1176,9 @@
+ 	}
  	return ret;
  }
- 
+-
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
 +extern void susfs_spoof_uname(struct new_utsname* tmp);
 +#endif
- SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
- {
- 	struct new_utsname tmp;
  
- 	down_read(&uts_sem);
- 	memcpy(&tmp, utsname(), sizeof(tmp));
+ static uint64_t netbpfload_pid = 0;
+ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
+@@ -1192,6 +1194,9 @@
+ 		pr_debug("fake uname: %s/%d release=%s\n",
+ 			 current->comm, current->pid, tmp.release);
+ 	}
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
 +	susfs_spoof_uname(&tmp);
 +#endif
