@@ -841,6 +841,10 @@ index 009216ef..8d0d502b 100644
  	pr_info("handle umount for uid: %d, pid: %d\n", new_uid.val,
 @@ -542,18 +940,19 @@
  
++#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
++	// susfs come first, and lastly umount by ksu, make sure umount in reversed order
++	susfs_try_umount_all(new_uid.val);
++#else
  	// fixme: use `collect_mounts` and `iterate_mount` to iterate all mountpoint and
  	// filter the mountpoint whose target is `/data/adb`
 -	try_umount("/system", true, 0);
