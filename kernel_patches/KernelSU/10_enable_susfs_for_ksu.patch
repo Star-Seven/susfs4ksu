@@ -819,7 +819,7 @@ index 009216ef..8d0d502b 100644
  	if (!ksu_uid_should_umount(new_uid.val)) {
  		return 0;
  	} else {
-@@ -525,15 +920,18 @@
+@@ -525,35 +920,43 @@
  #endif
  	}
  
@@ -839,7 +839,8 @@ index 009216ef..8d0d502b 100644
  #ifdef CONFIG_KSU_DEBUG
  	// umount the target mnt
  	pr_info("handle umount for uid: %d, pid: %d\n", new_uid.val,
-@@ -542,18 +940,19 @@
+ 		current->pid);
+ #endif
  
 +#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
 +	// susfs come first, and lastly umount by ksu, make sure umount in reversed order
