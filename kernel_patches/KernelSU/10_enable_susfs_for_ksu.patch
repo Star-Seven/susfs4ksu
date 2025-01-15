@@ -158,7 +158,7 @@ index 66929756..1e9ce687 100644
  ifndef KSU_NEXT_EXPECTED_SIZE
  KSU_NEXT_EXPECTED_SIZE := 0x3e6
  endif
-@@ -56,10 +48,22 @@
+@@ -56,6 +48,18 @@
  ccflags-y += -DEXPECTED_NEXT_SIZE=$(KSU_NEXT_EXPECTED_SIZE)
  ccflags-y += -DEXPECTED_NEXT_HASH=\"$(KSU_NEXT_EXPECTED_HASH)\"
  
@@ -177,33 +177,10 @@ index 66929756..1e9ce687 100644
  ccflags-y += -DKSU_UMOUNT
  
  ifneq ($(shell grep -Eq "^static int can_umount" $(srctree)/fs/namespace.c; echo $$?),0)
--$(info -- KSU_NEXT: adding function 'static int can_umount(const struct path *path, int flags);' to $(srctree)/fs/namespace.c)
-+$(info -- KSU_SUSFS: adding function 'static int can_umount(const struct path *path, int flags);' to $(srctree)/fs/namespace.c)
- CAN_UMOUNT = static int can_umount(const struct path *path, int flags)\n\
- {\n\t\
-         struct mount *mnt = real_mount(path->mnt);\n\t\
-@@ -78,10 +82,10 @@
-         return 0;\n\
- }\n
- $(shell sed -i '/^static bool is_mnt_ns_file/i $(CAN_UMOUNT)' $(srctree)/fs/namespace.c;)
--endif
--
-+ endif
-+ 
- ifneq ($(shell grep -Eq "^int path_umount" $(srctree)/fs/namespace.c; echo $$?),0)
--$(info -- KSU_NEXT: adding function 'int path_umount(struct path *path, int flags);' to $(srctree)/fs/namespace.c)
-+$(info -- KSU_SUSFS: adding function 'int path_umount(struct path *path, int flags);' to $(srctree)/fs/namespace.c)
- PATH_UMOUNT = int path_umount(struct path *path, int flags)\n\
- {\n\t\
-         struct mount *mnt = real_mount(path->mnt);\n\t\
-@@ -98,10 +102,16 @@
+@@ -104,4 +108,13 @@
+ ccflags-y += -Wno-implicit-function-declaration -Wno-strict-prototypes -Wno-int-conversion -Wno-gcc-compat
+ ccflags-y += -Wno-declaration-after-statement -Wno-unused-function
  
- ifneq ($(shell grep -Eq "^int path_umount" $(srctree)/fs/internal.h; echo $$?),0)
- $(shell sed -i '/^extern void __init mnt_init/a int path_umount(struct path *path, int flags);' $(srctree)/fs/internal.h;)
--$(info -- KSU_NEXT: adding 'int path_umount(struct path *path, int flags);' to $(srctree)/fs/internal.h)
-+$(info -- KSU_SUSFS: adding 'int path_umount(struct path *path, int flags);' to $(srctree)/fs/internal.h)
-+endif
-+ 
 +## For susfs stuff ##
 +ifeq ($(shell test -e $(srctree)/fs/susfs.c; echo $$?),0)
 +$(eval SUSFS_VERSION=$(shell cat $(srctree)/include/linux/susfs.h | grep -E '^#define SUSFS_VERSION' | cut -d' ' -f3 | sed 's/"//g'))
@@ -212,11 +189,7 @@ index 66929756..1e9ce687 100644
 +else
 +$(info -- You have not integrate susfs in your kernel.)
 +$(info -- Read: https://gitlab.com/simonpunk/susfs4ksu)
- endif
--
--ccflags-y += -Wno-implicit-function-declaration -Wno-strict-prototypes -Wno-int-conversion -Wno-gcc-compat
--ccflags-y += -Wno-declaration-after-statement -Wno-unused-function
--
++endif
  # Keep a new line here!! Because someone may append config
 \ No newline at end of file
 diff --git a/kernel/allowlist.c b/kernel/allowlist.c
