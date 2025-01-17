@@ -171,10 +171,11 @@ index 66929756..1e9ce687 100644
  ifndef KSU_NEXT_EXPECTED_SIZE
  KSU_NEXT_EXPECTED_SIZE := 0x3e6
  endif
-@@ -56,6 +48,18 @@
+@@ -56,27 +48,40 @@
  ccflags-y += -DEXPECTED_NEXT_SIZE=$(KSU_NEXT_EXPECTED_SIZE)
  ccflags-y += -DEXPECTED_NEXT_HASH=\"$(KSU_NEXT_EXPECTED_HASH)\"
  
+-ccflags-y += -DKSU_COMPAT_GET_CRED_RCU
 +ccflags-y += -Wno-implicit-function-declaration -Wno-strict-prototypes -Wno-int-conversion -Wno-gcc-compat
 +ccflags-y += -Wno-declaration-after-statement -Wno-unused-function
 +
@@ -186,11 +187,48 @@ index 66929756..1e9ce687 100644
 +ifeq ($(shell grep -q "struct selinux_state " $(srctree)/security/selinux/include/security.h; echo $$?),0)
 +ccflags-y += -DKSU_COMPAT_HAS_SELINUX_STATE
 +endif
-+
+ 
  ccflags-y += -DKSU_UMOUNT
  
+-# This feature is introduced in linux 5.0-rc1
+-ifneq ($(shell grep -Eq "^static inline const struct cred \*get_cred_rcu" $(srctree)/include/linux/cred.h; echo $$?),0)
+-$(info -- KSU_NEXT: adding function 'static inline const struct cred *get_cred_rcu(const struct cred *cred);' to $(srctree)/include/linux/cred.h)
+-GET_CRED_RCU = static inline const struct cred *get_cred_rcu(const struct cred *cred)\n\
++ifneq ($(shell grep -Eq "^static int can_umount" $(srctree)/fs/namespace.c; echo $$?),0)
++$(info -- KSU_SUSFS: adding function 'static int can_umount(const struct path *path, int flags);' to $(srctree)/fs/namespace.c)
++CAN_UMOUNT = static int can_umount(const struct path *path, int flags)\n\
+ {\n\t\
+-        struct cred *nonconst_cred = (struct cred *) cred;\n\t\
+-        if (!cred)\n\t\t\
+-                return NULL;\n\t\
+-        if (!atomic_inc_not_zero(&nonconst_cred->usage))\n\t\t\
+-                return NULL;\n\t\
+-        validate_creds(cred);\n\t\
+-        return cred;\n\
++        struct mount *mnt = real_mount(path->mnt);\n\t\
++        if (flags & ~(MNT_FORCE | MNT_DETACH | MNT_EXPIRE | UMOUNT_NOFOLLOW))\n\t\t\
++                return -EINVAL;\n\t\
++        if (!may_mount())\n\t\t\
++                return -EPERM;\n\t\
++        if (path->dentry != path->mnt->mnt_root)\n\t\t\
++                return -EINVAL;\n\t\
++        if (!check_mnt(mnt))\n\t\t\
++                return -EINVAL;\n\t\
++        if (mnt->mnt.mnt_flags & MNT_LOCKED)\n\t\t\
++                return -EINVAL;\n\t\
++        if (flags & MNT_FORCE && !capable(CAP_SYS_ADMIN))\n\t\t\
++                return -EPERM;\n\t\
++        return 0;\n\
+ }\n
+-$(shell grep -qF "$(GET_CRED_RCU)" $(srctree)/include/linux/cred.h || sed -i '/^static inline void put_cred/i $(GET_CRED_RCU)' $(srctree)/include/linux/cred.h)
+-
+-$(info -- KSU_NEXT: modifying 'get_task_cred' function in $(srctree)/kernel/cred.c)
+-$(shell sed -i 's/!atomic_inc_not_zero(&((struct cred \*)cred)->usage)/!get_cred_rcu(cred)/g' $(srctree)/kernel/cred.c)
++$(shell sed -i '/^static bool is_mnt_ns_file/i $(CAN_UMOUNT)' $(srctree)/fs/namespace.c;)
+ endif
+ 
  ifneq ($(shell grep -Eq "^static int can_umount" $(srctree)/fs/namespace.c; echo $$?),0)
-@@ -101,7 +105,34 @@
+@@ -122,7 +127,34 @@
  $(info -- KSU_NEXT: adding 'int path_umount(struct path *path, int flags);' to $(srctree)/fs/internal.h)
  endif
  
