@@ -1132,20 +1132,19 @@ index e6f4c7b8884b..82a2cc6a6edb 100644
  
  int iterate_dir(struct file *file, struct dir_context *ctx)
  {
-@@ -211,6 +215,12 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
+@@ -173,6 +177,11 @@
+ 	unsigned long d_ino;
  	int reclen = ALIGN(offsetof(struct linux_dirent, d_name) + namlen + 2,
  		sizeof(long));
- 
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +	if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) && susfs_sus_ino_for_filldir64(ino)) {
 +		return 0;
 +	}
 +#endif
-+
- 	buf->error = verify_dirent_name(name, namlen);
- 	if (unlikely(buf->error))
- 		return buf->error;
-@@ -300,6 +310,11 @@ static int filldir64(struct dir_context *ctx, const char *name, int namlen,
+ 
+ 	buf->error = -EINVAL;	/* only used if we fail.. */
+ 	if (reclen > buf->count)
+@@ -260,6 +269,12 @@
  	int reclen = ALIGN(offsetof(struct linux_dirent64, d_name) + namlen + 1,
  		sizeof(u64));
  
@@ -1154,9 +1153,10 @@ index e6f4c7b8884b..82a2cc6a6edb 100644
 +		return 0;
 +	}
 +#endif
- 	buf->error = verify_dirent_name(name, namlen);
- 	if (unlikely(buf->error))
- 		return buf->error;
++
+ 	buf->error = -EINVAL;	/* only used if we fail.. */
+ 	if (reclen > buf->count)
+ 		return -EINVAL;
 diff --git a/fs/stat.c b/fs/stat.c
 index 504e16e913db..ac9f6b7904bc 100644
 --- a/fs/stat.c
