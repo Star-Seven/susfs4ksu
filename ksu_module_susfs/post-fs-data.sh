@@ -21,7 +21,7 @@ source ${MODDIR}/utils.sh
 ##   because susfs now mainly compare target's inode to determine whether it is a sus path, sus kstat or sus mount.
 ##
 
-#### Hide target path and all its sub-paths for process with uid > 2000 ####
+#### Hide target path and all its sub-paths from all user app processes which have no root permission granted ####
 ## Make sure the target file/directory has no more overlay/mount operation on going. Or add it after it is done being overlayed or mounted ##
 # For some custom ROM #
 cat <<EOF >/dev/null
