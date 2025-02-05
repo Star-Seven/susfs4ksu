@@ -307,7 +307,7 @@ index 009216ef..1330c6c7 100644
  #include "allowlist.h"
  #include "arch.h"
  #include "core_hook.h"
-@@ -49,13 +53,78 @@
+@@ -49,13 +53,77 @@
  #define KSU_GET_CRED_RCU
  #endif
  
@@ -374,7 +374,6 @@ index 009216ef..1330c6c7 100644
 +}
 +#endif // #ifdef CONFIG_KSU_SUSFS
 +
-+#endif // #ifdef CONFIG_KSU_SUSFS
 +
  static bool ksu_module_mounted = false;
  
@@ -388,7 +387,7 @@ index 009216ef..1330c6c7 100644
  		// we are manager, allow!
  		return true;
  	}
-@@ -132,7 +201,7 @@
+@@ -132,7 +200,7 @@
  #endif
  }
  
@@ -397,7 +396,7 @@ index 009216ef..1330c6c7 100644
  {
  	struct cred *cred;
  
-@@ -202,7 +271,7 @@
+@@ -202,7 +270,7 @@
  	disable_seccomp();
  	spin_unlock_irq(&current->sighand->siglock);
  
@@ -406,7 +405,7 @@ index 009216ef..1330c6c7 100644
  }
  
  int ksu_handle_rename(struct dentry *old_dentry, struct dentry *new_dentry)
-@@ -239,7 +308,7 @@
+@@ -239,7 +307,7 @@
  	pr_info("renameat: %s -> %s, new path: %s\n", old_dentry->d_iname,
  		new_dentry->d_iname, buf);
  
@@ -415,7 +414,7 @@ index 009216ef..1330c6c7 100644
  
  	return 0;
  }
-@@ -264,7 +333,7 @@
+@@ -264,7 +332,7 @@
  	}
  
  	bool from_root = 0 == current_uid().val;
@@ -424,7 +423,7 @@ index 009216ef..1330c6c7 100644
  
  	if (!from_root && !from_manager) {
  		// only root or manager can access this interface
-@@ -288,7 +357,7 @@
+@@ -288,7 +356,7 @@
  	if (arg2 == CMD_GRANT_ROOT) {
  		if (is_allow_su()) {
  			pr_info("allow root for: %d\n", current_uid().val);
@@ -433,7 +432,7 @@ index 009216ef..1330c6c7 100644
  			if (copy_to_user(result, &reply_ok, sizeof(reply_ok))) {
  				pr_err("grant_root: prctl reply error\n");
  			}
-@@ -320,10 +389,13 @@
+@@ -320,10 +388,13 @@
  		switch (arg3) {
  		case EVENT_POST_FS_DATA: {
  			static bool post_fs_data_lock = false;
@@ -448,7 +447,7 @@ index 009216ef..1330c6c7 100644
  			}
  			break;
  		}
-@@ -350,7 +422,7 @@
+@@ -350,7 +421,7 @@
  		if (!from_root) {
  			return 0;
  		}
@@ -457,7 +456,7 @@ index 009216ef..1330c6c7 100644
  			if (copy_to_user(result, &reply_ok, sizeof(reply_ok))) {
  				pr_err("sepolicy: prctl reply error\n");
  			}
-@@ -411,6 +483,282 @@
+@@ -411,6 +482,282 @@
  		return 0;
  	}
  
@@ -740,7 +739,7 @@ index 009216ef..1330c6c7 100644
  	// all other cmds are for 'root manager'
  	if (!from_manager) {
  		return 0;
-@@ -478,11 +826,15 @@
+@@ -478,11 +825,15 @@
  		return false;
  	}
  
@@ -756,7 +755,7 @@ index 009216ef..1330c6c7 100644
  }
  
  static int ksu_umount_mnt(struct path *path, int flags)
-@@ -495,7 +847,11 @@
+@@ -495,7 +846,11 @@
  #endif
  }
  
@@ -769,7 +768,7 @@ index 009216ef..1330c6c7 100644
  {
  	struct path path;
  	int err = kern_path(mnt, 0, &path);
-@@ -513,12 +869,35 @@
+@@ -513,12 +868,35 @@
  		return;
  	}
  
@@ -805,7 +804,7 @@ index 009216ef..1330c6c7 100644
  int ksu_handle_setuid(struct cred *new, const struct cred *old)
  {
  	// this hook is used for umounting overlayfs for some uid, if there isn't any module mounted, just ignore it!
-@@ -538,6 +917,20 @@
+@@ -538,6 +916,20 @@
  		return 0;
  	}
  
@@ -826,7 +825,7 @@ index 009216ef..1330c6c7 100644
  	if (!is_appuid(new_uid) || is_unsupported_uid(new_uid.val)) {
  		// pr_info("handle setuid ignore non application or isolated uid: %d\n", new_uid.val);
  		return 0;
-@@ -547,7 +940,17 @@
+@@ -547,7 +939,17 @@
  		// pr_info("handle setuid ignore allowed application: %d\n", new_uid.val);
  		return 0;
  	}
@@ -844,7 +843,7 @@ index 009216ef..1330c6c7 100644
  	if (!ksu_uid_should_umount(new_uid.val)) {
  		return 0;
  	} else {
-@@ -556,10 +959,12 @@
+@@ -556,10 +958,12 @@
  #endif
  	}
  
@@ -858,7 +857,7 @@ index 009216ef..1330c6c7 100644
  	if (!is_zygote_child) {
  		pr_info("handle umount ignore non zygote child: %d\n",
  			current->pid);
-@@ -571,20 +976,25 @@
+@@ -571,20 +975,25 @@
  		current->pid);
  #endif
  
