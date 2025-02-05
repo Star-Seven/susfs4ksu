@@ -151,7 +151,6 @@ index 67f177f4..5b4100b7 100644
 +endmenu
 +
  endmenu
-\ No newline at end of file
 diff --git a/kernel/Makefile b/kernel/Makefile
 index 66929756..1e9ce687 100644
 --- a/kernel/Makefile
@@ -1422,7 +1421,7 @@ index 9b45cd0d..4fd06f44 100644
  
  	return 0;
  }
-@@ -364,4 +364,17 @@
+@@ -364,4 +364,25 @@
  	unregister_kprobe(&faccessat_kp);
  	unregister_kprobe(&pts_unix98_lookup_kp);
  #endif
@@ -1439,6 +1438,15 @@ index 9b45cd0d..4fd06f44 100644
 +	enable_kprobe(&pts_unix98_lookup_kp);
 +	ksu_devpts_hook = false;
 +}
++
++void ksu_susfs_enable_sus_su(void) {
++	disable_kprobe(&execve_kp);
++	disable_kprobe(&newfstatat_kp);
++	disable_kprobe(&faccessat_kp);
++	disable_kprobe(&pts_unix98_lookup_kp);
++	ksu_devpts_hook = true;
++}
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_SU
 +
 diff --git a/kernel/throne_tracker.c b/kernel/throne_tracker.c
 index 725c9103..e7ae295e 100644
