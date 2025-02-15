@@ -1,0 +1,73 @@
+name: Sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 5 * * 1,3'
+
+jobs:
+  check:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout GitHub repo
+      uses: actions/checkout@v4
+      with:
+        repository: Star-Seven/susfs4ksu
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Git
+      run: |
+        git config --global user.name 'github-actions'
+        git config --global user.email 'github-actions@github.com'
+
+    - name: Add GitLab remote and fetch kernel-4.14 branch
+      run: |
+        git remote add upstream https://gitlab.com/simonpunk/susfs4ksu.git || true
+        git fetch upstream kernel-4.14
+
+    - name: Check for updates and sync branch
+      run: |
+        set -e
+        new_commit=$(git rev-parse upstream/kernel-4.14)
+        echo "Latest upstream commit: $new_commit"
+
+        if git rev-parse --verify simon >/dev/null 2>&1; then
+            echo "Local simon branch exists."
+            git checkout simon
+        else
+            echo "Local simon branch does not exist. Creating it."
+            git checkout -b simon upstream/kernel-4.14
+        fi
+        
+        if [ -f update.md ]; then
+            recorded_commit=$(grep -m1 "^Commit:" update.md | awk '{print $2}')
+            echo "Recorded commit in update.md: $recorded_commit"
+        else
+            echo "update.md does not exist. It will be created."
+            recorded_commit=""
+        fi
+        
+        if [ "$recorded_commit" = "$new_commit" ]; then
+            echo "No new update. Exiting."
+            exit 0
+        else
+            echo "New update detected. Updating branch."
+            git reset --hard upstream/kernel-4.14
+            
+            current_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            echo "Commit: $new_commit" > update.md
+            echo "Checked at: $current_time" >> update.md
+            
+            git add update.md
+            git commit -m "Update simon: new commit $new_commit at $current_time"
+            git push origin simon --force
+        fi
+
+    - name: Clear older runs
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        set -e
+        gh run list -L400 --json databaseId -q '.[].databaseId' | tail -n+5 | xargs -IID gh api "repos/$GITHUB_REPOSITORY/actions/runs/ID" -X DELETE || :
