@@ -847,7 +847,7 @@ index 7442047d0aa9..6a141f8a2fda 100644
 @@ -2,6 +2,8 @@
  #define KSU_SUSFS_DEF_H
  
- #include <linux/bits.h>
+ /* #include <linux/bits.h> */
 +#include <linux/cred.h>
 +#include <linux/fs.h>
  
