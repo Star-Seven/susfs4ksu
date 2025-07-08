@@ -25,6 +25,7 @@
 #define CMD_SUSFS_SET_SDCARD_ROOT_PATH 0x55552
 #define CMD_SUSFS_ADD_SUS_MOUNT 0x55560
 #define CMD_SUSFS_HIDE_SUS_MNTS_FOR_ALL_PROCS 0x55561
+#define CMD_SUSFS_UMOUNT_FOR_ZYGOTE_ISO_SERVICE 0x55562
 #define CMD_SUSFS_ADD_SUS_KSTAT 0x55570
 #define CMD_SUSFS_UPDATE_SUS_KSTAT 0x55571
 #define CMD_SUSFS_ADD_SUS_KSTAT_STATICALLY 0x55572
@@ -236,6 +237,14 @@ static void print_help(void) {
 	log("              - It is set to 1 in kernel by default\n");
 	log("              - It is recommended to set to 0 after screen is unlocked, or during service.sh or boot-completed.sh stage, as this should fix the issue on some rooted apps that rely on mounts mounted by ksu process\n");
 	log("\n");
+	log("        umount_for_zygote_iso_service <0|1>\n");
+	log("         |--> 0 -> Do not umount for zygote spawned isolated service process\n");
+	log("         |--> 1 -> Enable to umount for zygote spawned isolated service process\n");
+	log("         |--> NOTE:\n");
+	log("              - By default it is set to 0 in kernel, or create '/data/adb/susfs_umount_for_zygote_iso_service' to set it to 1 on boot\n");
+	log("              - Set to 0 if you have modules that overlay framework system files like framework.jar or other overlay apk, then atm you should let other module like zygisk and its hiding module to take care of, otherwise it may cause bootloop\n");
+	log("              - Set to 1 if you DO NOT have such modules mentioned above, otherwise sus mounts won't be umounted for zygote spawned isolated process and they will be detected\n");
+	log("\n");
 	log("        add_sus_kstat_statically </path/of/file_or_directory> <ino> <dev> <nlink> <size>\\\n");
 	log("                                 <atime> <atime_nsec> <mtime> <mtime_nsec> <ctime> <ctime_nsec>\n");
 	log("                                 <blocks> <blksize>\n");
@@ -363,6 +372,15 @@ int main(int argc, char *argv[]) {
 		}
 		prctl(KERNEL_SU_OPTION, CMD_SUSFS_HIDE_SUS_MNTS_FOR_ALL_PROCS, atoi(argv[2]), NULL, &error);
 		PRT_MSG_IF_OPERATION_NOT_SUPPORTED(error, CMD_SUSFS_HIDE_SUS_MNTS_FOR_ALL_PROCS);
+		return error;
+	// umount_for_zygote_iso_service
+	} else if (argc == 3 && !strcmp(argv[1], "umount_for_zygote_iso_service")) {
+		if (strcmp(argv[2], "0") && strcmp(argv[2], "1")) {
+			print_help();
+			return 1;
+		}
+		prctl(KERNEL_SU_OPTION, CMD_SUSFS_UMOUNT_FOR_ZYGOTE_ISO_SERVICE, atoi(argv[2]), NULL, &error);
+		PRT_MSG_IF_OPERATION_NOT_SUPPORTED(error, CMD_SUSFS_UMOUNT_FOR_ZYGOTE_ISO_SERVICE);
 		return error;
 	// add_sus_kstat_statically
 	} else if (argc == 15 && !strcmp(argv[1], "add_sus_kstat_statically")) {
@@ -673,91 +691,20 @@ int main(int argc, char *argv[]) {
 			if (!error)
 				printf("%s\n", version);
 		} else if (!strcmp(argv[2], "enabled_features")) {
-			char *enabled_features_buf = malloc(getpagesize()*2);
+			char *enabled_features;
 			char *ptr_buf;
-			unsigned long enabled_features;
-			int str_len;
-			if (!enabled_features_buf) {
+			size_t bufsize = getpagesize()*2;
+			enabled_features = (char *)malloc(bufsize);
+			if (!enabled_features) {
 				perror("malloc");
 				return -ENOMEM;
 			}
-			ptr_buf = enabled_features_buf;
-			prctl(KERNEL_SU_OPTION, CMD_SUSFS_SHOW_ENABLED_FEATURES, &enabled_features, NULL, &error);
+			prctl(KERNEL_SU_OPTION, CMD_SUSFS_SHOW_ENABLED_FEATURES, enabled_features, bufsize, &error);
 			PRT_MSG_IF_OPERATION_NOT_SUPPORTED(error, CMD_SUSFS_SHOW_ENABLED_FEATURES);
 			if (!error) {
-				if (enabled_features & (1 << 0)) {
-					str_len = strlen("CONFIG_KSU_SUSFS_SUS_PATH\n");
-					strncpy(ptr_buf, "CONFIG_KSU_SUSFS_SUS_PATH\n", str_len);
-					ptr_buf += str_len;
-				}
-				if (enabled_features & (1 << 1)) {
-					str_len = strlen("CONFIG_KSU_SUSFS_SUS_MOUNT\n");
-					strncpy(ptr_buf, "CONFIG_KSU_SUSFS_SUS_MOUNT\n", str_len);
-					ptr_buf += str_len;
-				}
-				if (enabled_features & (1 << 2)) {
-					str_len = strlen("CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT\n");
-					strncpy(ptr_buf, "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT\n", str_len);
-					ptr_buf += str_len;
-				}
-				if (enabled_features & (1 << 3)) {
-					str_len = strlen("CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT\n");
-					strncpy(ptr_buf, "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT\n", str_len);
-					ptr_buf += str_len;
-				}
-				if (enabled_features & (1 << 4)) {
-					str_len = strlen("CONFIG_KSU_SUSFS_SUS_KSTAT\n");
-					strncpy(ptr_buf, "CONFIG_KSU_SUSFS_SUS_KSTAT\n", str_len);
-					ptr_buf += str_len;
-				}
-				if (enabled_features & (1 << 5)) {
-					str_len = strlen("CONFIG_KSU_SUSFS_TRY_UMOUNT\n");
-					strncpy(ptr_buf, "CONFIG_KSU_SUSFS_TRY_UMOUNT\n", str_len);
-					ptr_buf += str_len;
-				}
-				if (enabled_features & (1 << 6)) {
-					str_len = strlen("CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT\n");
-					strncpy(ptr_buf, "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT\n", str_len);
-					ptr_buf += str_len;
-				}
-				if (enabled_features & (1 << 7)) {
-					str_len = strlen("CONFIG_KSU_SUSFS_SPOOF_UNAME\n");
-					strncpy(ptr_buf, "CONFIG_KSU_SUSFS_SPOOF_UNAME\n", str_len);
-					ptr_buf += str_len;
-				}
-				if (enabled_features & (1 << 8)) {
-					str_len = strlen("CONFIG_KSU_SUSFS_ENABLE_LOG\n");
-					strncpy(ptr_buf, "CONFIG_KSU_SUSFS_ENABLE_LOG\n", str_len);
-					ptr_buf += str_len;
-				}
-				if (enabled_features & (1 << 9)) {
-					str_len = strlen("CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS\n");
-					strncpy(ptr_buf, "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS\n", str_len);
-					ptr_buf += str_len;
-				}
-				if (enabled_features & (1 << 10)) {
-					str_len = strlen("CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG\n");
-					strncpy(ptr_buf, "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG\n", str_len);
-					ptr_buf += str_len;
-				}
-				if (enabled_features & (1 << 11)) {
-					str_len = strlen("CONFIG_KSU_SUSFS_OPEN_REDIRECT\n");
-					strncpy(ptr_buf, "CONFIG_KSU_SUSFS_OPEN_REDIRECT\n", str_len);
-					ptr_buf += str_len;
-				}
-				if (enabled_features & (1 << 12)) {
-					str_len = strlen("CONFIG_KSU_SUSFS_SUS_SU\n");
-					strncpy(ptr_buf, "CONFIG_KSU_SUSFS_SUS_SU\n", str_len);
-					ptr_buf += str_len;
-				}
-				if (enabled_features & (1 << 13)) {
-					str_len = strlen("CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT\n");
-					strncpy(ptr_buf, "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT\n", str_len);
-					ptr_buf += str_len;
-				}
-				printf("%s", enabled_features_buf);
-				free(enabled_features_buf);
+				printf("%s", enabled_features);
 			}
+			free(enabled_features);
 		} else if (!strcmp(argv[2], "variant")) {
 			char variant[16];
 			prctl(KERNEL_SU_OPTION, CMD_SUSFS_SHOW_VARIANT, variant, NULL, &error);
