@@ -1,6 +1,6 @@
 diff --git a/.gitignore b/.gitignore
---- a/.gitignore	2025-07-08 02:39:25.000000000 +0800
-+++ b/.gitignore	2025-07-08 13:11:23.000000000 +0800
+--- a/.gitignore	2025-07-15 06:02:34.000000000 +0800
++++ b/.gitignore	2025-07-15 10:53:18.000000000 +0800
 @@ -1,2 +1,5 @@
  .idea
  .vscode
@@ -8,8 +8,8 @@ diff --git a/.gitignore b/.gitignore
 +*.patch
 +*.rej
 diff --git a/kernel/Kconfig b/kernel/Kconfig
---- a/kernel/Kconfig	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/Kconfig	2025-07-08 13:11:23.000000000 +0800
+--- a/kernel/Kconfig	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/Kconfig	2025-07-15 10:53:18.000000000 +0800
 @@ -40,4 +40,138 @@
  	  Disabling this is mostly only useful for kernel 4.1 and older.
  	  Make sure to implement manual hooks on security/security.c.
@@ -150,9 +150,29 @@ diff --git a/kernel/Kconfig b/kernel/Kconfig
 +
  endmenu
 diff --git a/kernel/Makefile b/kernel/Makefile
---- a/kernel/Makefile	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/Makefile	2025-07-08 13:11:23.000000000 +0800
-@@ -150,4 +150,81 @@
+--- a/kernel/Makefile	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/Makefile	2025-07-15 10:53:18.000000000 +0800
+@@ -16,18 +16,7 @@
+ 
+ obj-$(CONFIG_KSU) += kernelsu.o
+ 
+-# .git is a text file while the module is imported by 'git submodule add'.
+-ifeq ($(shell test -e $(srctree)/$(src)/../.git; echo $$?),0)
+-$(shell cd $(srctree)/$(src); /usr/bin/env PATH="$$PATH":/usr/bin:/usr/local/bin [ -f ../.git/shallow ] && git fetch --unshallow)
+-KSU_GIT_VERSION := $(shell cd $(srctree)/$(src); /usr/bin/env PATH="$$PATH":/usr/bin:/usr/local/bin git rev-list --count HEAD)
+-# ksu_version: major * 10000 + git version + 200 for historical reasons
+-$(eval KSU_VERSION=$(shell expr 10000 + $(KSU_GIT_VERSION) + 200))
+-$(info -- KernelSU-Next version: $(KSU_VERSION))
+-ccflags-y += -DKSU_VERSION=$(KSU_VERSION)
+-else # If there is no .git file, the default version will be passed.
+-$(warning "KSU_GIT_VERSION not defined! It is better to make KernelSU-Next a git submodule!")
+-ccflags-y += -DKSU_VERSION=11998
+-endif
++ccflags-y += -DKSU_VERSION=12797
+ 
+ ifeq ($(shell grep -q " current_sid(void)" $(srctree)/security/selinux/include/objsec.h; echo $$?),0)
+ ccflags-y += -DKSU_COMPAT_HAS_CURRENT_SID
+@@ -116,4 +105,81 @@
  ccflags-y += -Wno-implicit-function-declaration -Wno-strict-prototypes -Wno-int-conversion -Wno-gcc-compat
  ccflags-y += -Wno-declaration-after-statement -Wno-unused-function
  
@@ -235,8 +255,8 @@ diff --git a/kernel/Makefile b/kernel/Makefile
 +endif
  # Keep a new line here!! Because someone may append config
 diff --git a/kernel/allowlist.c b/kernel/allowlist.c
---- a/kernel/allowlist.c	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/allowlist.c	2025-07-08 13:11:23.000000000 +0800
+--- a/kernel/allowlist.c	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/allowlist.c	2025-07-15 10:53:18.000000000 +0800
 @@ -95,7 +95,7 @@
  static struct work_struct ksu_save_work;
  static struct work_struct ksu_load_work;
@@ -283,8 +303,8 @@ diff --git a/kernel/allowlist.c b/kernel/allowlist.c
  	return ksu_queue_work(&ksu_save_work);
  }
 diff --git a/kernel/apk_sign.c b/kernel/apk_sign.c
---- a/kernel/apk_sign.c	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/apk_sign.c	2025-07-08 13:11:23.000000000 +0800
+--- a/kernel/apk_sign.c	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/apk_sign.c	2025-07-15 10:53:18.000000000 +0800
 @@ -315,7 +315,7 @@
  
  #endif
@@ -295,8 +315,8 @@ diff --git a/kernel/apk_sign.c b/kernel/apk_sign.c
  	int tries = 0;
  
 diff --git a/kernel/apk_sign.h b/kernel/apk_sign.h
---- a/kernel/apk_sign.h	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/apk_sign.h	2025-07-08 13:11:23.000000000 +0800
+--- a/kernel/apk_sign.h	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/apk_sign.h	2025-07-15 10:53:18.000000000 +0800
 @@ -3,6 +3,6 @@
  
  #include <linux/types.h>
@@ -306,8 +326,8 @@ diff --git a/kernel/apk_sign.h b/kernel/apk_sign.h
  
  #endif
 diff --git a/kernel/core_hook.c b/kernel/core_hook.c
---- a/kernel/core_hook.c	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/core_hook.c	2025-07-08 13:11:23.000000000 +0800
+--- a/kernel/core_hook.c	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/core_hook.c	2025-07-15 10:53:18.000000000 +0800
 @@ -7,6 +7,7 @@
  #include <linux/kallsyms.h>
  #include <linux/kernel.h>
@@ -327,17 +347,17 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  #include "allowlist.h"
  #include "arch.h"
  #include "core_hook.h"
-@@ -44,24 +49,110 @@
+@@ -44,20 +49,105 @@
  #include "manager.h"
  #include "selinux/selinux.h"
  #include "throne_tracker.h"
 -#include "throne_tracker.h"
  #include "kernel_compat.h"
  
- #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0) || defined(KSU_COMPAT_GET_CRED_RCU)
- #define KSU_GET_CRED_RCU
- #endif
- 
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0) || defined(KSU_COMPAT_GET_CRED_RCU)
++#define KSU_GET_CRED_RCU
++#endif
++
 +#ifdef CONFIG_KSU_LSM_SECURITY_HOOKS
 +#define LSM_HANDLER_TYPE static int
 +#else
@@ -391,11 +411,6 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
 +		path_put(&path);
 +	}
 +	pr_info("susfs_is_umount_for_zygote_system_process_enabled: %d\n", susfs_is_umount_for_zygote_system_process_enabled);
-+	if (!kern_path(DATA_ADB_UMOUNT_FOR_ZYGOTE_ISO_SERVICE, 0, &path)) {
-+		susfs_is_umount_for_zygote_iso_service_enabled = true;
-+		path_put(&path);
-+	}
-+	pr_info("susfs_is_umount_for_zygote_iso_service_enabled: %d\n", susfs_is_umount_for_zygote_iso_service_enabled);
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +#ifdef CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT
 +	if (!kern_path(DATA_ADB_NO_AUTO_ADD_SUS_BIND_MOUNT, 0, &path)) {
@@ -442,7 +457,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  		// we are manager, allow!
  		return true;
  	}
-@@ -139,7 +230,7 @@
+@@ -135,7 +225,7 @@
  #endif
  }
  
@@ -451,7 +466,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  {
  	struct cred *cred;
  
-@@ -197,7 +288,7 @@
+@@ -193,7 +283,7 @@
  	disable_seccomp();
  	spin_unlock_irq(&current->sighand->siglock);
  
@@ -460,7 +475,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  }
  
  int ksu_handle_rename(struct dentry *old_dentry, struct dentry *new_dentry)
-@@ -234,7 +325,7 @@
+@@ -230,7 +320,7 @@
  	pr_info("renameat: %s -> %s, new path: %s\n", old_dentry->d_iname,
  		new_dentry->d_iname, buf);
  
@@ -469,7 +484,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  
  	return 0;
  }
-@@ -279,7 +370,7 @@
+@@ -275,7 +365,7 @@
  	}
  
  	bool from_root = 0 == current_uid().val;
@@ -478,7 +493,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  
  	if (!from_root && !from_manager) {
  		// only root or manager can access this interface
-@@ -303,7 +394,7 @@
+@@ -299,7 +389,7 @@
  	if (arg2 == CMD_GRANT_ROOT) {
  		if (is_allow_su()) {
  			pr_info("allow root for: %d\n", current_uid().val);
@@ -487,7 +502,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  			if (copy_to_user(result, &reply_ok, sizeof(reply_ok))) {
  				pr_err("grant_root: prctl reply error\n");
  			}
-@@ -358,10 +449,13 @@
+@@ -354,10 +444,13 @@
  		switch (arg3) {
  		case EVENT_POST_FS_DATA: {
  			static bool post_fs_data_lock = false;
@@ -502,7 +517,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  			}
  			break;
  		}
-@@ -389,7 +483,7 @@
+@@ -385,7 +478,7 @@
  		if (!from_root) {
  			return 0;
  		}
@@ -511,7 +526,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  			if (copy_to_user(result, &reply_ok, sizeof(reply_ok))) {
  				pr_err("sepolicy: prctl reply error\n");
  			}
-@@ -450,6 +544,352 @@
+@@ -446,6 +539,352 @@
  		return 0;
  	}
  
@@ -864,7 +879,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  	// all other cmds are for 'root manager'
  	if (!from_manager) {
  		return 0;
-@@ -515,6 +955,12 @@
+@@ -511,6 +950,12 @@
  		}
  
  		if (enabled) {
@@ -877,7 +892,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  			ksu_sucompat_init();
  		} else {
  			ksu_sucompat_exit();
-@@ -553,11 +999,15 @@
+@@ -549,11 +994,15 @@
  		return false;
  	}
  
@@ -893,7 +908,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  }
  
  static int ksu_umount_mnt(struct path *path, int flags)
-@@ -570,7 +1020,11 @@
+@@ -566,7 +1015,11 @@
  #endif
  }
  
@@ -906,7 +921,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  {
  	struct path path;
  	int err = kern_path(mnt, 0, &path);
-@@ -590,12 +1044,35 @@
+@@ -586,12 +1039,35 @@
  		return;
  	}
  
@@ -942,7 +957,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  int ksu_handle_setuid(struct cred *new, const struct cred *old)
  {
  	// this hook is used for umounting overlayfs for some uid, if there isn't any module mounted, just ignore it!
-@@ -615,6 +1092,33 @@
+@@ -611,6 +1087,33 @@
  		return 0;
  	}
  
@@ -976,7 +991,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  	if (!is_appuid(new_uid) || is_unsupported_uid(new_uid.val)) {
  		// pr_info("handle setuid ignore non application or isolated uid: %d\n", new_uid.val);
  		return 0;
-@@ -624,7 +1128,17 @@
+@@ -620,7 +1123,17 @@
  		// pr_info("handle setuid ignore allowed application: %d\n", new_uid.val);
  		return 0;
  	}
@@ -994,7 +1009,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  	if (!ksu_uid_should_umount(new_uid.val)) {
  		return 0;
  	} else {
-@@ -633,10 +1147,12 @@
+@@ -629,10 +1142,12 @@
  #endif
  	}
  
@@ -1008,7 +1023,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  	if (!is_zygote_child) {
  		pr_info("handle umount ignore non zygote child: %d\n",
  			current->pid);
-@@ -648,26 +1164,32 @@
+@@ -644,26 +1159,32 @@
  		current->pid);
  #endif
  
@@ -1053,7 +1068,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  	return 0;
  }
  
-@@ -771,6 +1293,46 @@
+@@ -767,6 +1288,46 @@
  }
  #endif
  
@@ -1100,7 +1115,7 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  #ifdef CONFIG_KSU_LSM_SECURITY_HOOKS
  static int ksu_task_prctl(int option, unsigned long arg2, unsigned long arg3,
  			  unsigned long arg4, unsigned long arg5)
-@@ -793,6 +1355,7 @@
+@@ -789,6 +1350,7 @@
  
  #ifndef MODULE
  static struct security_hook_list ksu_hooks[] = {
@@ -1109,8 +1124,8 @@ diff --git a/kernel/core_hook.c b/kernel/core_hook.c
  	LSM_HOOK_INIT(inode_rename, ksu_inode_rename),
  	LSM_HOOK_INIT(task_fix_setuid, ksu_task_fix_setuid),
 diff --git a/kernel/kernel_compat.c b/kernel/kernel_compat.c
---- a/kernel/kernel_compat.c	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/kernel_compat.c	2025-07-08 13:11:23.000000000 +0800
+--- a/kernel/kernel_compat.c	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/kernel_compat.c	2025-07-15 10:53:18.000000000 +0800
 @@ -76,6 +76,16 @@
  	task_unlock(current);
  }
@@ -1177,8 +1192,8 @@ diff --git a/kernel/kernel_compat.c b/kernel/kernel_compat.c
 +#endif
 +}
 diff --git a/kernel/kernel_compat.h b/kernel/kernel_compat.h
---- a/kernel/kernel_compat.h	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/kernel_compat.h	2025-07-08 13:11:23.000000000 +0800
+--- a/kernel/kernel_compat.h	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/kernel_compat.h	2025-07-15 10:53:18.000000000 +0800
 @@ -29,11 +29,13 @@
  #endif
  
@@ -1194,8 +1209,8 @@ diff --git a/kernel/kernel_compat.h b/kernel/kernel_compat.h
  
  #endif
 diff --git a/kernel/ksu.c b/kernel/ksu.c
---- a/kernel/ksu.c	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/ksu.c	2025-07-08 13:11:23.000000000 +0800
+--- a/kernel/ksu.c	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/ksu.c	2025-07-15 10:53:18.000000000 +0800
 @@ -11,6 +11,10 @@
  #include "ksu.h"
  #include "throne_tracker.h"
@@ -1248,8 +1263,8 @@ diff --git a/kernel/ksu.c b/kernel/ksu.c
  MODULE_LICENSE("GPL");
  MODULE_AUTHOR("weishu");
 diff --git a/kernel/ksud.c b/kernel/ksud.c
---- a/kernel/ksud.c	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/ksud.c	2025-07-08 13:11:23.000000000 +0800
+--- a/kernel/ksud.c	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/ksud.c	2025-07-15 10:53:18.000000000 +0800
 @@ -19,6 +19,7 @@
  #include <linux/types.h>
  #include <linux/uaccess.h>
@@ -1287,7 +1302,7 @@ diff --git a/kernel/ksud.c b/kernel/ksud.c
  	ksu_load_allow_list();
  	// sanity check, this may influence the performance
  	stop_input_hook();
-@@ -101,189 +101,188 @@
+@@ -101,190 +101,188 @@
  	} ptr;
  };
  
@@ -1543,7 +1558,8 @@ diff --git a/kernel/ksud.c b/kernel/ksud.c
 -					first_arg, p, sizeof(first_arg));
 -				pr_info("/system/bin/init first arg: %s\n",
 -					first_arg);
--				if (!strcmp(first_arg, "second_stage")) {
+-				if (!strcmp(first_arg, "second_stage") || 
+-				    (argc == 2 && !strcmp(first_arg, ""))) {
 -					pr_info("/system/bin/init second_stage executed\n");
 -					apply_kernelsu_rules();
 -					init_second_stage_executed = true;
@@ -1630,7 +1646,7 @@ diff --git a/kernel/ksud.c b/kernel/ksud.c
  }
  
  static ssize_t (*orig_read)(struct file *, char __user *, size_t, loff_t *);
-@@ -677,6 +676,10 @@
+@@ -678,6 +676,10 @@
  	ksu_execveat_hook = false;
  	pr_info("stop execve_hook\n");
  #endif
@@ -1642,8 +1658,8 @@ diff --git a/kernel/ksud.c b/kernel/ksud.c
  
  static void stop_input_hook()
 diff --git a/kernel/ksud.h b/kernel/ksud.h
---- a/kernel/ksud.h	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/ksud.h	2025-07-08 13:11:23.000000000 +0800
+--- a/kernel/ksud.h	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/ksud.h	2025-07-15 10:53:18.000000000 +0800
 @@ -5,10 +5,13 @@
  
  #define KSUD_PATH "/data/adb/ksud"
@@ -1660,8 +1676,8 @@ diff --git a/kernel/ksud.h b/kernel/ksud.h
 +
  #endif
 diff --git a/kernel/manager.h b/kernel/manager.h
---- a/kernel/manager.h	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/manager.h	2025-07-08 13:11:23.000000000 +0800
+--- a/kernel/manager.h	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/manager.h	2025-07-15 10:53:18.000000000 +0800
 @@ -13,7 +13,7 @@
  	return ksu_manager_uid != KSU_INVALID_UID;
  }
@@ -1672,23 +1688,25 @@ diff --git a/kernel/manager.h b/kernel/manager.h
  	return unlikely(ksu_manager_uid == current_uid().val);
  }
 diff --git a/kernel/selinux/rules.c b/kernel/selinux/rules.c
---- a/kernel/selinux/rules.c	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/selinux/rules.c	2025-07-08 13:11:23.000000000 +0800
-@@ -36,9 +36,9 @@
- 	return db;
- }
+--- a/kernel/selinux/rules.c	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/selinux/rules.c	2025-07-15 10:53:18.000000000 +0800
+@@ -38,11 +38,11 @@
+ 
+ static DEFINE_MUTEX(ksu_rules);
  
 -void apply_kernelsu_rules()
 +void ksu_apply_kernelsu_rules()
  {
+ 	struct policydb *db;
+ 
 -	if (!getenforce()) {
 +	if (!ksu_getenforce()) {
  		pr_info("SELinux permissive or disabled, apply rules!\n");
  	}
  
-@@ -134,6 +134,14 @@
-     ksu_allow(db, "system_server", KERNEL_SU_DOMAIN, "process", "getpgid");
-     ksu_allow(db, "system_server", KERNEL_SU_DOMAIN, "process", "sigkill");
+@@ -139,6 +139,14 @@
+ 	ksu_allow(db, "system_server", KERNEL_SU_DOMAIN, "process", "getpgid");
+ 	ksu_allow(db, "system_server", KERNEL_SU_DOMAIN, "process", "sigkill");
  
 +#ifdef CONFIG_KSU_SUSFS
 +	// Allow umount in zygote process without installing zygisk
@@ -1698,10 +1716,10 @@ diff --git a/kernel/selinux/rules.c b/kernel/selinux/rules.c
 +	susfs_set_zygote_sid();
 +#endif
 +
- 	rcu_read_unlock();
+ 	mutex_unlock(&ksu_rules);
  }
  
-@@ -223,13 +231,13 @@
+@@ -228,13 +236,13 @@
  	selinux_xfrm_notify_policyload();
  }
  
@@ -1718,8 +1736,8 @@ diff --git a/kernel/selinux/rules.c b/kernel/selinux/rules.c
  	}
  	
 diff --git a/kernel/selinux/selinux.c b/kernel/selinux/selinux.c
---- a/kernel/selinux/selinux.c	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/selinux/selinux.c	2025-07-08 13:11:23.000000000 +0800
+--- a/kernel/selinux/selinux.c	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/selinux/selinux.c	2025-07-15 10:53:18.000000000 +0800
 @@ -8,6 +8,14 @@
  
  #define KERNEL_SU_DOMAIN "u:r:su:s0"
@@ -1865,8 +1883,8 @@ diff --git a/kernel/selinux/selinux.c b/kernel/selinux/selinux.c
  
  u32 ksu_get_devpts_sid()
 diff --git a/kernel/selinux/selinux.h b/kernel/selinux/selinux.h
---- a/kernel/selinux/selinux.h	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/selinux/selinux.h	2025-07-08 13:11:23.000000000 +0800
+--- a/kernel/selinux/selinux.h	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/selinux/selinux.h	2025-07-15 10:53:18.000000000 +0800
 @@ -8,17 +8,29 @@
  #define KSU_COMPAT_USE_SELINUX_STATE
  #endif
@@ -1903,9 +1921,19 @@ diff --git a/kernel/selinux/selinux.h b/kernel/selinux/selinux.h
  
  u32 ksu_get_devpts_sid();
  
+diff --git a/kernel/setup.sh b/kernel/setup.sh
+--- a/kernel/setup.sh	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/setup.sh	2025-07-15 11:03:26.470966700 +0800
+@@ -72,4 +72,4 @@
+ else
+     initialize_variables
+     setup_kernelsu "$@"
+-fi
+\ No newline at end of file
++fi
 diff --git a/kernel/sucompat.c b/kernel/sucompat.c
---- a/kernel/sucompat.c	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/sucompat.c	2025-07-08 13:11:23.000000000 +0800
+--- a/kernel/sucompat.c	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/sucompat.c	2025-07-15 10:53:18.000000000 +0800
 @@ -28,9 +28,13 @@
  static bool ksu_sucompat_non_kp __read_mostly = true;
  #endif
@@ -2065,8 +2093,8 @@ diff --git a/kernel/sucompat.c b/kernel/sucompat.c
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_SU
 +
 diff --git a/kernel/throne_tracker.c b/kernel/throne_tracker.c
---- a/kernel/throne_tracker.c	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/throne_tracker.c	2025-07-08 13:11:23.000000000 +0800
+--- a/kernel/throne_tracker.c	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/throne_tracker.c	2025-07-15 10:53:18.000000000 +0800
 @@ -192,7 +192,7 @@
  				}
  			}
@@ -2086,8 +2114,8 @@ diff --git a/kernel/throne_tracker.c b/kernel/throne_tracker.c
  	struct file *fp;
  	int tries = 0;
 diff --git a/kernel/throne_tracker.h b/kernel/throne_tracker.h
---- a/kernel/throne_tracker.h	2025-07-08 02:39:25.000000000 +0800
-+++ b/kernel/throne_tracker.h	2025-07-08 13:11:23.000000000 +0800
+--- a/kernel/throne_tracker.h	2025-07-15 06:02:34.000000000 +0800
++++ b/kernel/throne_tracker.h	2025-07-15 10:53:18.000000000 +0800
 @@ -5,7 +5,7 @@
  
  void ksu_throne_tracker_exit();
@@ -2096,4 +2124,3 @@ diff --git a/kernel/throne_tracker.h b/kernel/throne_tracker.h
 +void ksu_track_throne();
  
  bool is_lock_held(const char *path);
- 
