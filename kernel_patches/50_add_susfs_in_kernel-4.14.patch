@@ -1,6 +1,6 @@
 diff --git a/fs/Makefile b/fs/Makefile
 --- a/fs/Makefile	2025-05-20 08:39:59.306758900 +0800
-+++ b/fs/Makefile	2025-07-08 15:42:34.153178800 +0800
++++ b/fs/Makefile	2025-07-22 14:12:35.344178100 +0800
 @@ -14,6 +14,8 @@
  		pnode.o splice.o sync.o utimes.o \
  		stack.o fs_struct.o statfs.o fs_pin.o nsfs.o
@@ -12,7 +12,7 @@ diff --git a/fs/Makefile b/fs/Makefile
  else
 diff --git a/fs/namei.c b/fs/namei.c
 --- a/fs/namei.c	2025-05-20 08:40:03.461762000 +0800
-+++ b/fs/namei.c	2025-07-08 18:00:26.063609800 +0800
++++ b/fs/namei.c	2025-07-22 14:25:16.615446000 +0800
 @@ -39,6 +39,9 @@
  #include <linux/bitops.h>
  #include <linux/init_task.h>
@@ -59,7 +59,7 @@ diff --git a/fs/namei.c b/fs/namei.c
  }
  
  static void restore_nameidata(void)
-@@ -1692,18 +1710,65 @@
+@@ -1692,18 +1710,63 @@
  static struct dentry *__lookup_hash(const struct qstr *name,
  		struct dentry *base, unsigned int flags)
  {
@@ -71,9 +71,6 @@ diff --git a/fs/namei.c b/fs/namei.c
 +		if (susfs_is_base_dentry_android_data_dir(base) &&
 +			susfs_is_sus_android_data_d_name_found(name->name))
 +		{
-+			if (flags & (LOOKUP_CREATE | LOOKUP_EXCL)) {
-+				return ERR_PTR(-EACCES);
-+			}
 +			dentry = lookup_dcache(&susfs_fake_qstr_name, base, flags);
 +			found_sus_path = true;
 +			goto retry;
@@ -95,14 +92,15 @@ diff --git a/fs/namei.c b/fs/namei.c
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +	{
 +		if (!found_sus_path && !IS_ERR(dentry) && dentry->d_inode && susfs_is_inode_sus_path(dentry->d_inode)) {
++			dput(dentry);
 +			dentry = lookup_dcache(&susfs_fake_qstr_name, base, flags);
 +			found_sus_path = true;
 +			goto retry;
 +		}
- 		return dentry;
++		return dentry;
 +	}
 +#else
-+		return dentry;
+ 		return dentry;
 +#endif
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
@@ -125,7 +123,7 @@ diff --git a/fs/namei.c b/fs/namei.c
  static int lookup_fast(struct nameidata *nd,
  		       struct path *path, struct inode **inode,
  		       unsigned *seqp)
-@@ -1712,6 +1777,9 @@
+@@ -1712,6 +1775,9 @@
  	struct dentry *dentry, *parent = nd->path.dentry;
  	int status = 1;
  	int err;
@@ -135,7 +133,7 @@ diff --git a/fs/namei.c b/fs/namei.c
  
  	/*
  	 * Rename seqlock is not required here because in the off chance
-@@ -1721,7 +1789,32 @@
+@@ -1721,7 +1787,33 @@
  	if (nd->flags & LOOKUP_RCU) {
  		unsigned seq;
  		bool negative;
@@ -160,6 +158,7 @@ diff --git a/fs/namei.c b/fs/namei.c
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +		if (is_nd_state_lookup_last_and_open_last && dentry && !IS_ERR(dentry) && dentry->d_inode && parent->d_inode) {
 +			if (susfs_is_inode_sus_path(dentry->d_inode)) {
++				dput(dentry);
 +				dentry = __d_lookup_rcu(parent, &susfs_fake_qstr_name, &backup_next_seq);
 +			}
 +		}
@@ -168,7 +167,7 @@ diff --git a/fs/namei.c b/fs/namei.c
  		if (unlikely(!dentry)) {
  			if (unlazy_walk(nd))
  				return -ECHILD;
-@@ -1767,7 +1860,30 @@
+@@ -1767,7 +1859,31 @@
  			/* we'd been told to redo it in non-rcu mode */
  			status = d_revalidate(dentry, nd->flags);
  	} else {
@@ -191,6 +190,7 @@ diff --git a/fs/namei.c b/fs/namei.c
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +		if (is_nd_state_lookup_last_and_open_last && dentry && !IS_ERR(dentry) && dentry->d_inode && parent->d_inode) {
 +			if (susfs_is_inode_sus_path(dentry->d_inode)) {
++				dput(dentry);
 +				dentry = __d_lookup(parent, &susfs_fake_qstr_name);
 +			}
 +		}
@@ -242,7 +242,7 @@ diff --git a/fs/namei.c b/fs/namei.c
  	if (IS_ERR(dentry))
  		goto out;
  	if (unlikely(!d_in_lookup(dentry))) {
-@@ -1829,6 +1974,17 @@
+@@ -1829,6 +1974,18 @@
  			dentry = old;
  		}
  	}
@@ -250,6 +250,7 @@ diff --git a/fs/namei.c b/fs/namei.c
 +	if (is_nd_flags_lookup_last && !found_sus_path) {
 +		if (dentry && !IS_ERR(dentry) && dentry->d_inode) {
 +			if (susfs_is_inode_sus_path(dentry->d_inode)) {
++				dput(dentry);
 +				dentry = d_alloc_parallel(dir, &susfs_fake_qstr_name, &sus_wq);
 +				found_sus_path = true;
 +				goto retry;
@@ -260,7 +261,7 @@ diff --git a/fs/namei.c b/fs/namei.c
  out:
  	inode_unlock_shared(inode);
  	return dentry;
-@@ -1951,6 +2107,11 @@
+@@ -1951,6 +2108,11 @@
  	if (unlikely(err <= 0)) {
  		if (err < 0)
  			return err;
@@ -272,7 +273,7 @@ diff --git a/fs/namei.c b/fs/namei.c
  		path.dentry = lookup_slow(&nd->last, nd->path.dentry,
  					  nd->flags);
  		if (IS_ERR(path.dentry))
-@@ -2222,10 +2383,20 @@
+@@ -2222,10 +2384,20 @@
  	for(;;) {
  		u64 hash_len;
  		int type;
@@ -293,7 +294,7 @@ diff --git a/fs/namei.c b/fs/namei.c
  
  		hash_len = hash_name(nd->path.dentry, name);
  
-@@ -2251,6 +2422,23 @@
+@@ -2251,6 +2423,23 @@
  				hash_len = this.hash_len;
  				name = this.name;
  			}
@@ -317,7 +318,7 @@ diff --git a/fs/namei.c b/fs/namei.c
  		}
  
  		nd->last.hash_len = hash_len;
-@@ -2417,7 +2605,9 @@
+@@ -2417,7 +2606,9 @@
  {
  	if (nd->last_type == LAST_NORM && nd->last.name[nd->last.len])
  		nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
@@ -328,7 +329,7 @@ diff --git a/fs/namei.c b/fs/namei.c
  	nd->flags &= ~LOOKUP_PARENT;
  	return walk_component(nd, 0);
  }
-@@ -3307,15 +3497,54 @@
+@@ -3307,15 +3498,55 @@
  	int error, create_error = 0;
  	umode_t mode = op->mode;
  	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
@@ -362,6 +363,7 @@ diff --git a/fs/namei.c b/fs/namei.c
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +	if (is_nd_state_open_last && dentry && !IS_ERR(dentry) && dentry->d_inode) {
 +		if (susfs_is_inode_sus_path(dentry->d_inode)) {
++			dput(dentry);
 +			dentry = d_lookup(dir, &susfs_fake_qstr_name);
 +			found_sus_path = true;
 +		}
@@ -383,7 +385,7 @@ diff --git a/fs/namei.c b/fs/namei.c
  			if (IS_ERR(dentry))
  				return PTR_ERR(dentry);
  		}
-@@ -3441,6 +3670,9 @@
+@@ -3441,6 +3672,9 @@
  	struct path path;
  	int error;
  
@@ -393,7 +395,7 @@ diff --git a/fs/namei.c b/fs/namei.c
  	nd->flags &= ~LOOKUP_PARENT;
  	nd->flags |= op->intent;
  
-@@ -3759,12 +3991,19 @@
+@@ -3759,12 +3993,19 @@
  	return file;
  }
  
@@ -413,12 +415,12 @@ diff --git a/fs/namei.c b/fs/namei.c
  
  	set_nameidata(&nd, dfd, pathname);
  	filp = path_openat(&nd, op, flags | LOOKUP_RCU);
-@@ -3772,6 +4011,25 @@
+@@ -3772,6 +4013,25 @@
  		filp = path_openat(&nd, op, flags);
  	if (unlikely(filp == ERR_PTR(-ESTALE)))
  		filp = path_openat(&nd, op, flags | LOOKUP_REVAL);
 +#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-+	if (!IS_ERR(filp) && unlikely(filp->f_inode->i_state & INODE_STATE_OPEN_REDIRECT) && current_uid().val < 2000) {
++	if (!IS_ERR(filp) && unlikely(filp->f_inode->i_mapping->flags & BIT_OPEN_REDIRECT) && current_uid().val < 11000) {
 +		fake_pathname = susfs_get_redirected_path(filp->f_inode->i_ino);
 +		if (!IS_ERR(fake_pathname)) {
 +			restore_nameidata();
@@ -441,7 +443,7 @@ diff --git a/fs/namei.c b/fs/namei.c
  }
 diff --git a/fs/namespace.c b/fs/namespace.c
 --- a/fs/namespace.c	2025-05-20 08:40:03.464761400 +0800
-+++ b/fs/namespace.c	2025-07-08 17:39:44.334789600 +0800
++++ b/fs/namespace.c	2025-07-22 14:12:35.430796600 +0800
 @@ -27,6 +27,9 @@
  #include <linux/task_work.h>
  #include <linux/sched/task.h>
@@ -651,15 +653,12 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  	lock_mount_hash();
  	list_add_tail(&mnt->mnt_instance, &root->d_sb->s_mounts);
  	unlock_mount_hash();
-@@ -1253,8 +1391,47 @@
+@@ -1253,8 +1391,52 @@
  #endif
  	struct mount *mnt;
  	int err;
 -
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+	struct mount *m;
-+	struct mnt_namespace *mnt_ns;
-+	int mnt_id;
 +	bool is_current_ksu_domain = susfs_is_current_ksu_domain();
 +	bool is_current_zygote_domain = susfs_is_current_zygote_domain();
 +
@@ -668,11 +667,9 @@ diff --git a/fs/namespace.c b/fs/namespace.c
 +	 * - if caller process is KSU, consider the following situation:
 +	 *     1. it is NOT doing unshare => call alloc_vfsmnt() to assign a new sus mnt_id
 +	 *     2. it is doing unshare => spoof the new mnt_id with the old mnt_id
-+	* - For the rest of caller process with sus old->mnt_id => call alloc_vfsmnt() to assign a new sus mnt_id
-+	* - Important notes: Here we can't determine whether the unshare is called by zygisk or not,
-+	*   so we can only patch out the unshare code in zygisk source code for now,
-+	*   but at least we can deal with old sus mounts using alloc_vfsmnt()
-+	*/
++	 * - If caller process is zygote and old mnt_id is sus => call alloc_vfsmnt() to assign a new sus mnt_id
++	 * - For the rest of caller process that doing unshare => call alloc_vfsmnt() to assign a new sus mnt_id only for old sus mount
++	 */
 +	// Firstly, check if it is KSU process
 +	if (unlikely(is_current_ksu_domain)) {
 +		// if it is doing single clone
@@ -687,8 +684,18 @@ diff --git a/fs/namespace.c b/fs/namespace.c
 +		}
 +		goto bypass_orig_flow;
 +	}
-+	// Lastly, just check if old->mnt_id is sus
-+	if (old->mnt_id >= DEFAULT_SUS_MNT_ID) {
++	// Secondly, check if it is zygote process and no matter it is doing unshare or not
++	if (likely(is_current_zygote_domain) && (old->mnt_id >= DEFAULT_SUS_MNT_ID)) {
++		/* Important Note: 
++		 *  - Here we can't determine whether the unshare is called zygisk or not,
++		 *    so we can only patch out the unshare code in zygisk source code for now
++		 *  - But at least we can deal with old sus mounts using alloc_vfsmnt()
++		 */
++		mnt = alloc_vfsmnt(old->mnt_devname, true, 0);
++		goto bypass_orig_flow;
++	}
++	// Lastly, for other process that is doing unshare operation, but only deal with old sus mount
++	if ((flag & CL_COPY_MNT_NS) && (old->mnt_id >= DEFAULT_SUS_MNT_ID)) {
 +		mnt = alloc_vfsmnt(old->mnt_devname, true, 0);
 +		goto bypass_orig_flow;
 +	}
@@ -700,7 +707,7 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  	if (!mnt)
  		return ERR_PTR(-ENOMEM);
  
-@@ -1340,6 +1517,15 @@
+@@ -1340,6 +1522,15 @@
  	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
  #endif
  	mnt->mnt_parent = mnt;
@@ -716,7 +723,7 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  	lock_mount_hash();
  	list_add_tail(&mnt->mnt_instance, &sb->s_mounts);
  	unlock_mount_hash();
-@@ -2678,6 +2864,27 @@
+@@ -2678,6 +2869,27 @@
  		umount_tree(mnt, UMOUNT_SYNC);
  		unlock_mount_hash();
  	}
@@ -744,7 +751,7 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  out2:
  	unlock_mount(mp);
  out:
-@@ -3335,6 +3542,15 @@
+@@ -3335,6 +3547,15 @@
  	else
  		retval = do_new_mount(&path, type_page, sb_flags, mnt_flags,
  				      dev_name, data_page);
@@ -760,7 +767,7 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  dput_out:
  	path_put(&path);
  	return retval;
-@@ -3412,6 +3628,10 @@
+@@ -3412,6 +3633,10 @@
  	struct mount *old;
  	struct mount *new;
  	int copy_flags;
@@ -771,7 +778,7 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  
  	BUG_ON(!ns);
  
-@@ -3431,6 +3651,10 @@
+@@ -3431,6 +3656,10 @@
  	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
  	if (user_ns != ns->user_ns)
  		copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;
@@ -782,7 +789,7 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  #ifdef CONFIG_KDP_NS
  	new = copy_tree(old, old->mnt->mnt_root, copy_flags);
  #else
-@@ -3487,6 +3711,29 @@
+@@ -3487,6 +3716,29 @@
  #endif
  			p = next_mnt(p, old);
  	}
@@ -812,7 +819,7 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  	namespace_unlock();
  
  	if (rootmnt)
-@@ -4094,3 +4341,37 @@
+@@ -4094,3 +4346,37 @@
  	.install	= mntns_install,
  	.owner		= mntns_owner,
  };
@@ -852,7 +859,7 @@ diff --git a/fs/namespace.c b/fs/namespace.c
 +#endif
 diff --git a/fs/notify/fdinfo.c b/fs/notify/fdinfo.c
 --- a/fs/notify/fdinfo.c	2025-05-20 08:40:05.035759400 +0800
-+++ b/fs/notify/fdinfo.c	2025-07-08 15:42:34.242711200 +0800
++++ b/fs/notify/fdinfo.c	2025-07-22 14:13:04.548299400 +0800
 @@ -13,6 +13,9 @@
  #include <linux/seq_file.h>
  #include <linux/proc_fs.h>
@@ -908,8 +915,8 @@ diff --git a/fs/notify/fdinfo.c b/fs/notify/fdinfo.c
  	inode = igrab(mark->connector->inode);
  	if (inode) {
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+		if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) &&
-+				unlikely(inode->i_state & INODE_STATE_SUS_KSTAT)) {
++		if (likely(susfs_is_current_non_root_user_app_proc()) &&
++				unlikely(inode->i_mapping->flags & BIT_SUS_KSTAT)) {
 +			struct path path;
 +			char *pathname = kmalloc(PAGE_SIZE, GFP_KERNEL);
 +			char *dpath;
@@ -942,7 +949,7 @@ diff --git a/fs/notify/fdinfo.c b/fs/notify/fdinfo.c
  			   inotify_mark_user_mask(mark));
 diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
 --- a/fs/proc/cmdline.c	2025-05-20 08:40:05.788759900 +0800
-+++ b/fs/proc/cmdline.c	2025-07-08 15:42:34.247709400 +0800
++++ b/fs/proc/cmdline.c	2025-07-22 14:12:35.445357100 +0800
 @@ -11,9 +11,18 @@
  };
  
@@ -964,7 +971,7 @@ diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
  	return 0;
 diff --git a/fs/proc/fd.c b/fs/proc/fd.c
 --- a/fs/proc/fd.c	2025-05-20 08:40:05.800760600 +0800
-+++ b/fs/proc/fd.c	2025-07-08 15:42:34.254054000 +0800
++++ b/fs/proc/fd.c	2025-07-22 14:12:35.451800600 +0800
 @@ -12,6 +12,9 @@
  #include <linux/fs.h>
  
@@ -991,7 +998,7 @@ diff --git a/fs/proc/fd.c b/fs/proc/fd.c
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +	mnt = real_mount(file->f_path.mnt);
-+	if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) &&
++	if (likely(susfs_is_current_non_root_user_app_proc()) &&
 +			mnt->mnt_id >= DEFAULT_SUS_MNT_ID) {
 +		for (; mnt->mnt_id >= DEFAULT_SUS_MNT_ID; mnt = mnt->mnt_parent) { }
 +	}
@@ -1008,7 +1015,7 @@ diff --git a/fs/proc/fd.c b/fs/proc/fd.c
  	if (seq_has_overflowed(m))
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
 --- a/fs/proc/task_mmu.c	2025-05-20 08:40:05.881759900 +0800
-+++ b/fs/proc/task_mmu.c	2025-07-08 15:42:34.272945100 +0800
++++ b/fs/proc/task_mmu.c	2025-07-22 14:13:57.865365500 +0800
 @@ -21,6 +21,9 @@
  #include <linux/mm_inline.h>
  #include <linux/ctype.h>
@@ -1035,7 +1042,7 @@ diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
  	if (file) {
  		struct inode *inode = file_inode(vma->vm_file);
 +#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-+		if (unlikely(inode->i_state & INODE_STATE_SUS_KSTAT)) {
++		if (unlikely(inode->i_mapping->flags & BIT_SUS_KSTAT)) {
 +			susfs_sus_ino_for_show_map_vma(inode->i_ino, &dev, &ino);
 +			goto bypass_orig_flow;
 +		}
@@ -1050,7 +1057,7 @@ diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
  
 diff --git a/fs/proc_namespace.c b/fs/proc_namespace.c
 --- a/fs/proc_namespace.c	2025-05-20 08:40:05.903760800 +0800
-+++ b/fs/proc_namespace.c	2025-07-08 15:42:34.279922200 +0800
++++ b/fs/proc_namespace.c	2025-07-22 14:29:39.593435000 +0800
 @@ -12,12 +12,20 @@
  #include <linux/security.h>
  #include <linux/fs_struct.h>
@@ -1084,7 +1091,7 @@ diff --git a/fs/proc_namespace.c b/fs/proc_namespace.c
  	if (sb->s_op->show_devname) {
  		err = sb->s_op->show_devname(m, mnt_path.dentry);
  		if (err)
-@@ -138,6 +151,10 @@
+@@ -138,6 +151,11 @@
  	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
  	int err;
  
@@ -1092,10 +1099,11 @@ diff --git a/fs/proc_namespace.c b/fs/proc_namespace.c
 +	if (unlikely(r->mnt_id >= DEFAULT_SUS_MNT_ID)&&(susfs_hide_sus_mnts_for_all_procs || !susfs_is_current_ksu_domain()))
 +		return 0;
 +#endif
++	
  	seq_printf(m, "%i %i %u:%u ", r->mnt_id, r->mnt_parent->mnt_id,
  		   MAJOR(sb->s_dev), MINOR(sb->s_dev));
  	if (sb->s_op->show_path) {
-@@ -202,6 +219,11 @@
+@@ -202,6 +220,11 @@
  	struct super_block *sb = mnt_path.dentry->d_sb;
  	int err;
  
@@ -1109,7 +1117,7 @@ diff --git a/fs/proc_namespace.c b/fs/proc_namespace.c
  		seq_puts(m, "device ");
 diff --git a/fs/readdir.c b/fs/readdir.c
 --- a/fs/readdir.c	2025-05-20 08:40:06.315759500 +0800
-+++ b/fs/readdir.c	2025-07-08 15:42:34.292903000 +0800
++++ b/fs/readdir.c	2025-07-22 14:12:35.494712700 +0800
 @@ -23,6 +23,14 @@
  
  #include <linux/uaccess.h>
@@ -1564,8 +1572,8 @@ diff --git a/fs/readdir.c b/fs/readdir.c
  	error = iterate_dir(f.file, &buf.ctx);
  	if (error >= 0)
 diff --git a/fs/stat.c b/fs/stat.c
---- a/fs/stat.c	2025-06-26 15:15:02.636678500 +0800
-+++ b/fs/stat.c	2025-07-08 17:40:23.886039600 +0800
+--- a/fs/stat.c	2025-07-15 11:58:41.851292900 +0800
++++ b/fs/stat.c	2025-07-22 14:26:30.077680700 +0800
 @@ -17,6 +17,9 @@
  #include <linux/syscalls.h>
  #include <linux/pagemap.h>
@@ -1587,8 +1595,8 @@ diff --git a/fs/stat.c b/fs/stat.c
  void generic_fillattr(struct inode *inode, struct kstat *stat)
  {
 +#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-+	if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) &&
-+			unlikely(inode->i_state & INODE_STATE_SUS_KSTAT)) {
++	if (likely(susfs_is_current_non_root_user_app_proc()) &&
++			unlikely(inode->i_mapping->flags & BIT_SUS_KSTAT)) {
 +		susfs_sus_ino_for_generic_fillattr(inode->i_ino, stat);
 +		stat->mode = inode->i_mode;
 +		stat->rdev = inode->i_rdev;
@@ -1602,7 +1610,7 @@ diff --git a/fs/stat.c b/fs/stat.c
  	stat->mode = inode->i_mode;
 diff --git a/fs/statfs.c b/fs/statfs.c
 --- a/fs/statfs.c	2025-05-20 08:40:06.704761100 +0800
-+++ b/fs/statfs.c	2025-07-08 15:42:34.310658100 +0800
++++ b/fs/statfs.c	2025-07-22 14:26:39.425232700 +0800
 @@ -9,6 +9,10 @@
  #include <linux/security.h>
  #include <linux/uaccess.h>
@@ -1622,7 +1630,7 @@ diff --git a/fs/statfs.c b/fs/statfs.c
 +	struct mount *mnt;
  
 +	mnt = real_mount(path->mnt);
-+	if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC)) {
++	if (likely(susfs_is_current_non_root_user_app_proc())) {
 +		for (; mnt->mnt_id >= DEFAULT_SUS_MNT_ID; mnt = mnt->mnt_parent) {}
 +	}
 +	error = statfs_by_dentry(mnt->mnt.mnt_root, buf);
@@ -1643,7 +1651,7 @@ diff --git a/fs/statfs.c b/fs/statfs.c
  		return -EINVAL;
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+	if (unlikely(s->s_root->d_inode->i_state & INODE_STATE_SUS_MOUNT)) {
++	if (unlikely(s->s_root->d_inode->i_mapping->flags & BIT_SUS_MOUNT)) {
 +		return -EINVAL;
 +	}
 +#endif
@@ -1652,7 +1660,7 @@ diff --git a/fs/statfs.c b/fs/statfs.c
  	return err;
 diff --git a/include/linux/mount.h b/include/linux/mount.h
 --- a/include/linux/mount.h	2025-05-20 08:40:16.263758400 +0800
-+++ b/include/linux/mount.h	2025-07-08 15:42:34.316658700 +0800
++++ b/include/linux/mount.h	2025-07-22 14:12:35.520310400 +0800
 @@ -72,6 +72,9 @@
  #endif
  	int mnt_flags;
@@ -1665,7 +1673,7 @@ diff --git a/include/linux/mount.h b/include/linux/mount.h
  struct file; /* forward dec */
 diff --git a/include/linux/sched.h b/include/linux/sched.h
 --- a/include/linux/sched.h	2025-05-20 08:40:20.160760600 +0800
-+++ b/include/linux/sched.h	2025-07-08 15:42:34.334764900 +0800
++++ b/include/linux/sched.h	2025-07-22 14:12:35.540668400 +0800
 @@ -1335,6 +1335,10 @@
  	 * New fields for task_struct should be added above here, so that
  	 * they are included in the randomized portion of task_struct.
@@ -1679,7 +1687,7 @@ diff --git a/include/linux/sched.h b/include/linux/sched.h
  	/* CPU-specific state of this task: */
 diff --git a/kernel/kallsyms.c b/kernel/kallsyms.c
 --- a/kernel/kallsyms.c	2025-05-20 08:40:33.011765000 +0800
-+++ b/kernel/kallsyms.c	2025-07-08 15:42:34.345279200 +0800
++++ b/kernel/kallsyms.c	2025-07-22 14:12:35.551410200 +0800
 @@ -689,8 +689,19 @@
  		seq_printf(m, "%pK %c %s\t[%s]\n", (void *)iter->value,
  			   type, iter->name, iter->module_name);
@@ -1702,7 +1710,7 @@ diff --git a/kernel/kallsyms.c b/kernel/kallsyms.c
  
 diff --git a/kernel/sys.c b/kernel/sys.c
 --- a/kernel/sys.c	2025-06-03 09:14:32.851659100 +0800
-+++ b/kernel/sys.c	2025-07-08 15:42:34.365867100 +0800
++++ b/kernel/sys.c	2025-07-22 14:12:35.575685900 +0800
 @@ -1196,12 +1196,18 @@
  	return ret;
  }
