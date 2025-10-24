@@ -1,6 +1,6 @@
 diff --git a/fs/Makefile b/fs/Makefile
 --- a/fs/Makefile	2025-05-20 08:39:59.306758900 +0800
-+++ b/fs/Makefile	2025-10-07 15:30:15.421365400 +0800
++++ b/fs/Makefile	2025-10-22 13:37:28.481462500 +0800
 @@ -14,6 +14,8 @@
  		pnode.o splice.o sync.o utimes.o \
  		stack.o fs_struct.o statfs.o fs_pin.o nsfs.o
@@ -12,7 +12,7 @@ diff --git a/fs/Makefile b/fs/Makefile
  else
 diff --git a/fs/namei.c b/fs/namei.c
 --- a/fs/namei.c	2025-05-20 08:40:03.461762000 +0800
-+++ b/fs/namei.c	2025-10-07 15:30:15.469869600 +0800
++++ b/fs/namei.c	2025-10-22 13:37:28.536184600 +0800
 @@ -39,6 +39,9 @@
  #include <linux/bitops.h>
  #include <linux/init_task.h>
@@ -443,21 +443,21 @@ diff --git a/fs/namei.c b/fs/namei.c
  }
 diff --git a/fs/namespace.c b/fs/namespace.c
 --- a/fs/namespace.c	2025-05-20 08:40:03.464761400 +0800
-+++ b/fs/namespace.c	2025-10-07 16:38:41.900615400 +0800
-@@ -28,12 +28,41 @@
++++ b/fs/namespace.c	2025-10-22 11:21:36.397000800 +0800
+@@ -27,6 +27,9 @@
+ #include <linux/task_work.h>
  #include <linux/sched/task.h>
  #include <linux/fslog.h>
- 
 +#if defined(CONFIG_KSU_SUSFS_SUS_MOUNT) || defined(CONFIG_KSU_SUSFS_TRY_UMOUNT)
 +#include <linux/susfs_def.h>
 +#endif
-+
+ 
  #ifdef CONFIG_KDP_NS
  #include <linux/kdp.h>
- #endif
- 
+@@ -35,6 +38,32 @@
  #include "pnode.h"
  #include "internal.h"
+ 
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +extern bool susfs_is_current_ksu_domain(void);
 +extern bool susfs_is_current_zygote_domain(void);
@@ -476,16 +476,17 @@ diff --git a/fs/namespace.c b/fs/namespace.c
 +bool susfs_is_auto_add_sus_ksu_default_mount_enabled = true;
 +#endif
 +#ifdef CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT
-+extern int susfs_auto_add_sus_bind_mount(const char *pathname, struct path *path_target);
++extern void susfs_auto_add_sus_bind_mount(const char *pathname, struct path *path_target);
 +bool susfs_is_auto_add_sus_bind_mount_enabled = true;
 +#endif
 +#ifdef CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT
 +extern void susfs_auto_add_try_umount_for_bind_mount(struct path *path);
 +bool susfs_is_auto_add_try_umount_for_bind_mount_enabled = true;
 +#endif
- 
++
  /* Maximum number of mounts in a mount namespace */
  unsigned int sysctl_mount_max __read_mostly = 100000;
+ 
 @@ -183,6 +212,24 @@
  static void mnt_free_id(struct mount *mnt)
  {
@@ -677,41 +678,28 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  		if (err)
  			goto out_free_cache;
  #ifdef CONFIG_KDP_NS
-@@ -302,6 +487,9 @@
- 		kdp_set_ns_data(mnt->mnt, NULL);
- #else
+@@ -304,6 +489,11 @@
  		mnt->mnt.data = NULL;
+ #endif
+ 
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +		// Make sure mnt->mnt.susfs_mnt_id_backup is initialized every time.
 +		mnt->mnt.susfs_mnt_id_backup = 0;
- #endif
- 
- 		INIT_HLIST_NODE(&mnt->mnt_hash);
-@@ -315,6 +503,7 @@
- 		INIT_HLIST_NODE(&mnt->mnt_mp_list);
- 		INIT_LIST_HEAD(&mnt->mnt_umounting);
- 		init_fs_pin(&mnt->mnt_umount, drop_mountpoint);
 +#endif
- 	}
- 	return mnt;
- 
-@@ -1174,7 +1363,24 @@
++
+ 		INIT_HLIST_NODE(&mnt->mnt_hash);
+ 		INIT_LIST_HEAD(&mnt->mnt_child);
+ 		INIT_LIST_HEAD(&mnt->mnt_mounts);
+@@ -1174,7 +1364,17 @@
  	if (!type)
  		return ERR_PTR(-ENODEV);
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+	// - We do not check anymore if boot-completed stage is triggered
-+	//   just to stop the performance loss
-+	if (susfs_is_boot_completed_triggered) {
-+		goto orig_flow;
-+	}
-+	
 +    // We only check for ksu process
 +	if (susfs_is_current_ksu_domain()) {
 +		mnt = susfs_alloc_sus_vfsmnt(name);
 +		goto bypass_orig_flow;
 +	}
-+orig_flow:
 +#endif
  	mnt = alloc_vfsmnt(name);
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
@@ -720,7 +708,7 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  	if (!mnt)
  		return ERR_PTR(-ENOMEM);
  
-@@ -1216,6 +1422,7 @@
+@@ -1216,6 +1416,7 @@
  	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
  #endif
  	mnt->mnt_parent = mnt;
@@ -728,16 +716,16 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  	lock_mount_hash();
  	list_add_tail(&mnt->mnt_instance, &root->d_sb->s_mounts);
  	unlock_mount_hash();
-@@ -1254,7 +1461,38 @@
+@@ -1254,7 +1455,38 @@
  	struct mount *mnt;
  	int err;
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +
-+	// - We do not check anymore if boot-completed stage is triggered
++	// - We do not check anymore for ksu process if boot-completed stage is triggered
 +	//   just to stop the performance loss
 +	if (susfs_is_boot_completed_triggered) {
-+		goto orig_flow;
++		goto skip_checking_for_ksu_proc;
 +	}
 +
 +	// First we must check for ksu process because of magic mount
@@ -752,13 +740,13 @@ diff --git a/fs/namespace.c b/fs/namespace.c
 +		goto bypass_orig_flow;
 +	}
 +
++skip_checking_for_ksu_proc:
 +	// Lastly for other processes of which old->mnt_id == DEFAULT_KSU_MNT_ID, go assign fake mnt_id
 +	if (old->mnt_id == DEFAULT_KSU_MNT_ID) {
 +		mnt = susfs_alloc_sus_vfsmnt(old->mnt_devname);
 +		goto bypass_orig_flow;
 +	}
 +
-+orig_flow:
 +#endif
  	mnt = alloc_vfsmnt(old->mnt_devname);
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
@@ -767,7 +755,7 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  	if (!mnt)
  		return ERR_PTR(-ENOMEM);
  
-@@ -1340,6 +1578,7 @@
+@@ -1340,6 +1572,7 @@
  	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
  #endif
  	mnt->mnt_parent = mnt;
@@ -775,7 +763,7 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  	lock_mount_hash();
  	list_add_tail(&mnt->mnt_instance, &sb->s_mounts);
  	unlock_mount_hash();
-@@ -2140,6 +2379,7 @@
+@@ -2140,6 +2373,7 @@
  	p = mnt;
  	list_for_each_entry(r, &mnt->mnt_mounts, mnt_child) {
  		struct mount *s;
@@ -783,30 +771,16 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  		if (!is_subdir(r->mnt_mountpoint, dentry))
  			continue;
  
-@@ -2183,7 +2423,7 @@
- 				goto out;
- 			lock_mount_hash();
- 			list_add_tail(&q->mnt_list, &res->mnt_list);
--			attach_mnt(q, parent, p->mnt_mp);
-+			attach_mnt(q, parent, p->mnt_mp);			
- 			unlock_mount_hash();
- 		}
- 	}
-@@ -2678,6 +2918,30 @@
+@@ -2678,6 +2912,22 @@
  		umount_tree(mnt, UMOUNT_SYNC);
  		unlock_mount_hash();
  	}
 +#if defined(CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT) || defined(CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT)
-+	// - We do not check anymore if boot-completed stage is triggered
-+	//   just to stop the performance loss
 +	// - Check if bind mounted path should be hidden and umounted automatically.
-+	if (!susfs_is_boot_completed_triggered &&
-+		(susfs_is_current_ksu_domain() || !strcmp(mnt->mnt_devname, "KSU")))
-+	{
++	if (susfs_is_current_ksu_domain()) {
 +#if defined(CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT)
-+		if (susfs_is_auto_add_sus_bind_mount_enabled &&
-+				susfs_auto_add_sus_bind_mount(old_name, &old_path)) {
-+			goto orig_flow;
++		if (susfs_is_auto_add_sus_bind_mount_enabled) {
++			susfs_auto_add_sus_bind_mount(old_name, &old_path);
 +		}
 +#endif
 +#if defined(CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT)
@@ -815,15 +789,12 @@ diff --git a/fs/namespace.c b/fs/namespace.c
 +		}
 +#endif
 +	}
-+#if defined(CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT)
-+orig_flow:
-+#endif
 +#endif // #if defined(CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT) || defined(CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT)
 +
  out2:
  	unlock_mount(mp);
  out:
-@@ -3335,6 +3599,15 @@
+@@ -3335,6 +3585,15 @@
  	else
  		retval = do_new_mount(&path, type_page, sb_flags, mnt_flags,
  				      dev_name, data_page);
@@ -839,18 +810,17 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  dput_out:
  	path_put(&path);
  	return retval;
-@@ -3431,6 +3704,10 @@
+@@ -3431,6 +3690,9 @@
  	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
  	if (user_ns != ns->user_ns)
  		copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;
-+
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +	copy_flags |= CL_COPY_MNT_NS;
 +#endif
  #ifdef CONFIG_KDP_NS
  	new = copy_tree(old, old->mnt->mnt_root, copy_flags);
  #else
-@@ -3487,6 +3764,7 @@
+@@ -3487,6 +3749,7 @@
  #endif
  			p = next_mnt(p, old);
  	}
@@ -858,7 +828,7 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  	namespace_unlock();
  
  	if (rootmnt)
-@@ -4094,3 +4372,40 @@
+@@ -4094,3 +4357,41 @@
  	.install	= mntns_install,
  	.owner		= mntns_owner,
  };
@@ -877,12 +847,13 @@ diff --git a/fs/namespace.c b/fs/namespace.c
 +	get_mnt_ns(mnt_ns);
 +	first_mnt_id = list_first_entry(&mnt_ns->list, struct mount, mnt_list)->mnt_id;
 +	list_for_each_entry(mnt, &mnt_ns->list, mnt_list) {
-+		mnt->mnt.susfs_mnt_id_backup = mnt->mnt_id;
-+		mnt->mnt_id = first_mnt_id++;
++		// It is very important that we don't reorder the sus mount if it is not umounted
++		if (mnt->mnt_id == DEFAULT_KSU_MNT_ID) {
++			continue;
++		}
++		WRITE_ONCE(mnt->mnt.susfs_mnt_id_backup, READ_ONCE(mnt->mnt_id));
++		WRITE_ONCE(mnt->mnt_id, first_mnt_id++);
 +	}
-+	// Assign the 'last_entry_mnt_id' to 'current->susfs_last_fake_mnt_id' for later use.
-+	// should be fine here assuming zygote is forking/unsharing app in one single thread.
-+	// Or should we put a lock here?
 +	put_mnt_ns(mnt_ns);
 +}
 +#endif
@@ -901,7 +872,7 @@ diff --git a/fs/namespace.c b/fs/namespace.c
 +#endif
 diff --git a/fs/notify/fdinfo.c b/fs/notify/fdinfo.c
 --- a/fs/notify/fdinfo.c	2025-05-20 08:40:05.035759400 +0800
-+++ b/fs/notify/fdinfo.c	2025-10-07 15:30:15.521391900 +0800
++++ b/fs/notify/fdinfo.c	2025-10-22 13:37:28.589785800 +0800
 @@ -13,6 +13,9 @@
  #include <linux/seq_file.h>
  #include <linux/proc_fs.h>
@@ -997,22 +968,79 @@ diff --git a/fs/notify/fdinfo.c b/fs/notify/fdinfo.c
  		seq_printf(m, "inotify wd:%x ino:%lx sdev:%x mask:%x ignored_mask:0 ",
  			   inode_mark->wd, inode->i_ino, inode->i_sb->s_dev,
  			   inotify_mark_user_mask(mark));
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+--- a/fs/proc/base.c	2025-05-20 08:40:05.784759400 +0800
++++ b/fs/proc/base.c	2025-10-22 11:26:06.905964500 +0800
+@@ -96,6 +96,10 @@
+ #include <linux/cpufreq_times.h>
+ #include <linux/task_integrity.h>
+ #include <linux/proca.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++#include <linux/susfs_def.h>
++#endif
++
+ #ifdef CONFIG_HARDWALL
+ #include <asm/hardwall.h>
+ #endif
+@@ -829,6 +833,9 @@
+ 	ssize_t copied;
+ 	char *page;
+ 	unsigned int flags;
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++	struct vm_area_struct *vma;
++#endif
+ 
+ 	if (!mm)
+ 		return 0;
+@@ -845,6 +852,22 @@
+ 
+ 	while (count > 0) {
+ 		size_t this_len = min_t(size_t, count, PAGE_SIZE);
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++		vma = find_vma(mm, addr);
++		if (vma && vma->vm_file) {
++			struct inode *inode = file_inode(vma->vm_file);
++			if (unlikely(inode->i_mapping->flags & BIT_SUS_MAPS) && susfs_is_current_proc_umounted()) {
++				if (write) {
++					copied = -EFAULT;
++				} else {
++					copied = -EIO;
++				}
++				*ppos = addr;
++				mmput(mm);
++				goto free;
++			}
++		}
++#endif
+ 
+ 		if (write && copy_from_user(page, buf, this_len)) {
+ 			copied = -EFAULT;
+@@ -2215,6 +2238,14 @@
+ 				vma = vma->vm_next) {
+ 			if (!vma->vm_file)
+ 				continue;
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++		    if (unlikely(file_inode(vma->vm_file)->i_mapping->flags & BIT_SUS_MAPS) &&
++			    susfs_is_current_proc_umounted())
++		    {
++			    continue;
++		    }
++#endif
++
+ 			if (++pos <= ctx->pos)
+ 				continue;
+ 
 diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
 --- a/fs/proc/cmdline.c	2025-05-20 08:40:05.788759900 +0800
-+++ b/fs/proc/cmdline.c	2025-10-07 15:35:26.382602700 +0800
-@@ -5,6 +5,10 @@
- #include <linux/seq_file.h>
- #include <asm/setup.h>
++++ b/fs/proc/cmdline.c	2025-10-22 11:25:06.441780100 +0800
+@@ -12,13 +12,24 @@
+ 
+ static char new_command_line[COMMAND_LINE_SIZE];
  
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
 +extern int susfs_spoof_cmdline_or_bootconfig(struct seq_file *m);
 +#endif
 +
- enum {
- 	FLAG_DELETE = 0,
- 	FLAG_REPLACE,
-@@ -14,6 +18,12 @@
- 
  static int cmdline_proc_show(struct seq_file *m, void *v)
  {
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
@@ -1024,9 +1052,15 @@ diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
  	seq_puts(m, new_command_line);
  	seq_putc(m, '\n');
  	return 0;
+ }
+ 
++
+ static int cmdline_proc_open(struct inode *inode, struct file *file)
+ {
+ 	return single_open(file, cmdline_proc_show, NULL);
 diff --git a/fs/proc/fd.c b/fs/proc/fd.c
 --- a/fs/proc/fd.c	2025-05-20 08:40:05.800760600 +0800
-+++ b/fs/proc/fd.c	2025-10-07 15:30:15.538079700 +0800
++++ b/fs/proc/fd.c	2025-10-22 13:37:28.644310200 +0800
 @@ -12,6 +12,9 @@
  #include <linux/fs.h>
  
@@ -1071,18 +1105,27 @@ diff --git a/fs/proc/fd.c b/fs/proc/fd.c
  	if (seq_has_overflowed(m))
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
 --- a/fs/proc/task_mmu.c	2025-05-20 08:40:05.881759900 +0800
-+++ b/fs/proc/task_mmu.c	2025-10-07 15:35:46.137816600 +0800
++++ b/fs/proc/task_mmu.c	2025-10-24 10:24:39.859213100 +0800
 @@ -21,6 +21,9 @@
  #include <linux/mm_inline.h>
  #include <linux/ctype.h>
  #include <linux/freezer.h>
-+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
++#if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP)
 +#include <linux/susfs_def.h>
 +#endif
  
  #include <asm/elf.h>
  #include <asm/tlb.h>
-@@ -355,6 +358,10 @@
+@@ -32,6 +35,8 @@
+ #include "../../drivers/block/zram/zram_drv.h"
+ #endif
+ 
++void __show_smap(struct seq_file *m, struct mem_size_stats *mss);
++
+ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ {
+ 	unsigned long text, lib, swap, ptes, pmds, anon, file, shmem;
+@@ -355,6 +360,10 @@
  		   MAJOR(dev), MINOR(dev), ino);
  }
  
@@ -1093,10 +1136,16 @@ diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
  static void
  show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
  {
-@@ -369,8 +376,17 @@
+@@ -369,8 +378,23 @@
  
  	if (file) {
  		struct inode *inode = file_inode(vma->vm_file);
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++		if (unlikely(inode->i_mapping->flags & BIT_SUS_MAPS) && susfs_is_current_proc_umounted()) {
++			show_vma_header_prefix(m, vma->vm_start, vma->vm_end, flags, pgoff, dev, ino);
++			goto done;
++		}
++#endif
 +#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
 +		if (unlikely(inode->i_mapping->flags & BIT_SUS_KSTAT)) {
 +			susfs_sus_ino_for_show_map_vma(inode->i_ino, &dev, &ino);
@@ -1111,9 +1160,146 @@ diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
  		pgoff = ((loff_t)vma->vm_pgoff) << PAGE_SHIFT;
  	}
  
+@@ -894,6 +918,26 @@
+ 	}
+ 
+ 	if (!rollup_mode)
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++	if (vma->vm_file &&
++		unlikely(file_inode(vma->vm_file)->i_mapping->flags & BIT_SUS_MAPS) &&
++		susfs_is_current_proc_umounted())
++	{
++		show_map_vma(m, vma, is_pid);
++		seq_printf(m,
++		   "Size:           %8lu kB\n"
++		   "KernelPageSize: %8lu kB\n"
++		   "MMUPageSize:    %8lu kB\n",
++		   (vma->vm_end - vma->vm_start) >> 10,
++		   vma_kernel_pagesize(vma) >> 10,
++		   vma_mmu_pagesize(vma) >> 10);
++
++		__show_smap(m, mss);
++		seq_puts(m, "VmFlags: mr mw me");
++		seq_putc(m, '\n');
++		goto bypass_orig_flow;
++	}
++#endif
+ 		seq_printf(m,
+ 			   "Size:           %8lu kB\n"
+ 			   "KernelPageSize: %8lu kB\n"
+@@ -901,8 +945,9 @@
+ 			   (vma->vm_end - vma->vm_start) >> 10,
+ 			   vma_kernel_pagesize(vma) >> 10,
+ 			   vma_mmu_pagesize(vma) >> 10);
+-
+-
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++bypass_orig_flow:
++#endif
+ 	if (!rollup_mode || last_vma)
+ 		seq_printf(m,
+ 			   "Rss:            %8lu kB\n"
+@@ -945,9 +990,21 @@
+ 			   (unsigned long)(mss->pss_locked >> (10 + PSS_SHIFT)));
+ 
+ 	if (!rollup_mode) {
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++		if (vma->vm_file &&
++			unlikely(file_inode(vma->vm_file)->i_mapping->flags & BIT_SUS_MAPS) &&
++			susfs_is_current_proc_umounted())
++		{
++			memset(mss, 0, sizeof(*mss));
++			goto bypass_orig_flow2;
++		}
++#endif
+ 		arch_show_smap(m, vma);
+ 		show_smap_vma_flags(m, vma);
+ 	}
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++bypass_orig_flow2:
++#endif
+ 	m_cache_vma(m, vma);
+ 	return ret;
+ }
+@@ -1582,6 +1639,9 @@
+ 	unsigned long start_vaddr;
+ 	unsigned long end_vaddr;
+ 	int ret = 0, copied = 0;
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++	struct vm_area_struct *vma;
++#endif
+ 
+ 	if (!mm || !mmget_not_zero(mm))
+ 		goto out;
+@@ -1640,6 +1700,16 @@
+ 		down_read(&mm->mmap_sem);
+ 		ret = walk_page_range(start_vaddr, end, &pagemap_walk);
+ 		up_read(&mm->mmap_sem);
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++		vma = find_vma(mm, start_vaddr);
++		if (vma && vma->vm_file) {
++			struct inode *inode = file_inode(vma->vm_file);
++			if (unlikely(inode->i_mapping->flags & BIT_SUS_MAPS) && susfs_is_current_proc_umounted()) {
++				pm.buffer->pme = 0;
++			}
++		}
++#endif
++
+ 		start_vaddr = end;
+ 
+ 		len = min(count, PM_ENTRY_BYTES * pm.pos);
+@@ -2284,3 +2354,47 @@
+ 	.release	= proc_map_release,
+ };
+ #endif /* CONFIG_NUMA */
++
++void __show_smap(struct seq_file *m, struct mem_size_stats *mss)
++{
++    seq_printf(m,
++           "Rss:            %8lu kB\n"
++           "Pss:            %8lu kB\n"
++           "Shared_Clean:   %8lu kB\n"
++           "Shared_Dirty:   %8lu kB\n"
++           "Private_Clean:  %8lu kB\n"
++           "Private_Dirty:  %8lu kB\n"
++           "Referenced:     %8lu kB\n"
++           "Anonymous:      %8lu kB\n"
++           "LazyFree:       %8lu kB\n"
++           "AnonHugePages:  %8lu kB\n"
++           "ShmemPmdMapped: %8lu kB\n"
++           "Shared_Hugetlb: %8lu kB\n"
++           "Private_Hugetlb: %7lu kB\n"
++           "Swap:           %8lu kB\n"
++           "SwapPss:        %8lu kB\n"
++#ifdef CONFIG_ZRAM_LRU_WRITEBACK
++           "Writeback:      %8lu kB\n"
++#endif
++           "Locked:         %8lu kB\n",
++           mss->resident >> 10,
++           (unsigned long)(mss->pss >> (10 + PSS_SHIFT)),
++           mss->shared_clean  >> 10,
++           mss->shared_dirty  >> 10,
++           mss->private_clean >> 10,
++           mss->private_dirty >> 10,
++           mss->referenced >> 10,
++           mss->anonymous >> 10,
++           mss->lazyfree >> 10,
++           mss->anonymous_thp >> 10,
++           mss->shmem_thp >> 10,
++           mss->shared_hugetlb >> 10,
++           mss->private_hugetlb >> 10,
++           mss->swap >> 10,
++           (unsigned long)(mss->swap_pss >> (10 + PSS_SHIFT)),
++#ifdef CONFIG_ZRAM_LRU_WRITEBACK
++           mss->writeback >> 10,
++#endif
++           (unsigned long)(mss->pss_locked >> (10 + PSS_SHIFT)));
++}
++EXPORT_SYMBOL(__show_smap);
+\ No newline at end of file
 diff --git a/fs/proc_namespace.c b/fs/proc_namespace.c
 --- a/fs/proc_namespace.c	2025-05-20 08:40:05.903760800 +0800
-+++ b/fs/proc_namespace.c	2025-10-07 15:30:15.566858300 +0800
++++ b/fs/proc_namespace.c	2025-10-22 13:37:28.677267300 +0800
 @@ -12,12 +12,19 @@
  #include <linux/security.h>
  #include <linux/fs_struct.h>
@@ -1175,7 +1361,7 @@ diff --git a/fs/proc_namespace.c b/fs/proc_namespace.c
  		seq_puts(m, "device ");
 diff --git a/fs/readdir.c b/fs/readdir.c
 --- a/fs/readdir.c	2025-05-20 08:40:06.315759500 +0800
-+++ b/fs/readdir.c	2025-10-07 15:30:15.580518300 +0800
++++ b/fs/readdir.c	2025-10-22 13:37:28.690917600 +0800
 @@ -23,6 +23,14 @@
  
  #include <linux/uaccess.h>
@@ -1631,7 +1817,7 @@ diff --git a/fs/readdir.c b/fs/readdir.c
  	if (error >= 0)
 diff --git a/fs/stat.c b/fs/stat.c
 --- a/fs/stat.c	2025-06-26 15:15:02.636678500 +0800
-+++ b/fs/stat.c	2025-10-07 15:30:15.591112000 +0800
++++ b/fs/stat.c	2025-10-22 13:37:28.701532500 +0800
 @@ -17,6 +17,9 @@
  #include <linux/syscalls.h>
  #include <linux/pagemap.h>
@@ -1668,7 +1854,7 @@ diff --git a/fs/stat.c b/fs/stat.c
  	stat->mode = inode->i_mode;
 diff --git a/fs/statfs.c b/fs/statfs.c
 --- a/fs/statfs.c	2025-05-20 08:40:06.704761100 +0800
-+++ b/fs/statfs.c	2025-10-07 15:30:15.597181100 +0800
++++ b/fs/statfs.c	2025-10-22 13:37:28.709091700 +0800
 @@ -9,6 +9,10 @@
  #include <linux/security.h>
  #include <linux/uaccess.h>
@@ -1718,7 +1904,7 @@ diff --git a/fs/statfs.c b/fs/statfs.c
  	return err;
 diff --git a/include/linux/mount.h b/include/linux/mount.h
 --- a/include/linux/mount.h	2025-05-20 08:40:16.263758400 +0800
-+++ b/include/linux/mount.h	2025-10-07 15:30:15.632989400 +0800
++++ b/include/linux/mount.h	2025-10-22 13:37:28.745473600 +0800
 @@ -72,6 +72,9 @@
  #endif
  	int mnt_flags;
@@ -1731,7 +1917,7 @@ diff --git a/include/linux/mount.h b/include/linux/mount.h
  struct file; /* forward dec */
 diff --git a/include/linux/sched.h b/include/linux/sched.h
 --- a/include/linux/sched.h	2025-05-20 08:40:20.160760600 +0800
-+++ b/include/linux/sched.h	2025-10-07 15:30:15.651145100 +0800
++++ b/include/linux/sched.h	2025-10-22 13:37:28.764635000 +0800
 @@ -1335,6 +1335,10 @@
  	 * New fields for task_struct should be added above here, so that
  	 * they are included in the randomized portion of task_struct.
@@ -1745,7 +1931,7 @@ diff --git a/include/linux/sched.h b/include/linux/sched.h
  	/* CPU-specific state of this task: */
 diff --git a/kernel/kallsyms.c b/kernel/kallsyms.c
 --- a/kernel/kallsyms.c	2025-05-20 08:40:33.011765000 +0800
-+++ b/kernel/kallsyms.c	2025-10-07 15:30:15.674933000 +0800
++++ b/kernel/kallsyms.c	2025-10-22 13:37:28.790396900 +0800
 @@ -669,6 +669,10 @@
  {
  }
@@ -1797,31 +1983,30 @@ diff --git a/kernel/kallsyms.c b/kernel/kallsyms.c
  
 diff --git a/kernel/sys.c b/kernel/sys.c
 --- a/kernel/sys.c	2025-06-03 09:14:32.851659100 +0800
-+++ b/kernel/sys.c	2025-10-07 15:36:14.305254200 +0800
-@@ -1196,6 +1196,10 @@
++++ b/kernel/sys.c	2025-10-22 11:15:55.584505100 +0800
+@@ -1196,6 +1196,9 @@
  	return ret;
  }
  
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
 +extern void susfs_spoof_uname(struct new_utsname* tmp);
 +#endif
-+
  SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
  {
  	struct new_utsname tmp;
-@@ -1235,6 +1239,9 @@
- 
- 	down_read(&uts_sem);
- 	memcpy(&tmp, utsname(), sizeof(tmp));
+@@ -1212,6 +1215,9 @@
+ 		}
+ 	}
+ 	up_read(&uts_sem);
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
 +	susfs_spoof_uname(&tmp);
 +#endif
- 	up_read(&uts_sem);
  	if (copy_to_user(name, &tmp, sizeof(tmp)))
  		return -EFAULT;
+ 
 diff --git a/security/selinux/avc.c b/security/selinux/avc.c
 --- a/security/selinux/avc.c	2025-05-20 08:40:51.773386200 +0800
-+++ b/security/selinux/avc.c	2025-10-07 15:34:17.125307000 +0800
++++ b/security/selinux/avc.c	2025-10-22 13:37:33.870316000 +0800
 @@ -50,6 +50,13 @@
  #define avc_cache_stats_incr(field)	do {} while (0)
  #endif
