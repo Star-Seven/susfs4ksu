@@ -1,6 +1,6 @@
 diff --git a/fs/Makefile b/fs/Makefile
---- a/fs/Makefile	2025-12-30 19:23:31.397455800 +0800
-+++ b/fs/Makefile	2026-01-05 15:18:02.240816400 +0800
+--- a/fs/Makefile	2025-05-20 08:39:59.306758900 +0800
++++ b/fs/Makefile	2026-01-31 13:07:55.986183400 +0800
 @@ -14,6 +14,8 @@
  		pnode.o splice.o sync.o utimes.o \
  		stack.o fs_struct.o statfs.o fs_pin.o nsfs.o
@@ -11,8 +11,8 @@ diff --git a/fs/Makefile b/fs/Makefile
  obj-y +=	buffer.o block_dev.o direct-io.o mpage.o
  else
 diff --git a/fs/namei.c b/fs/namei.c
---- a/fs/namei.c	2026-01-05 18:48:45.450151100 +0800
-+++ b/fs/namei.c	2026-01-05 18:48:46.238040300 +0800
+--- a/fs/namei.c	2025-05-20 08:40:03.461762000 +0800
++++ b/fs/namei.c	2026-01-31 13:07:56.044183700 +0800
 @@ -39,6 +39,9 @@
  #include <linux/bitops.h>
  #include <linux/init_task.h>
@@ -605,8 +605,8 @@ diff --git a/fs/namei.c b/fs/namei.c
  	return filp;
  }
 diff --git a/fs/namespace.c b/fs/namespace.c
---- a/fs/namespace.c	2026-01-05 18:48:45.519150000 +0800
-+++ b/fs/namespace.c	2026-01-05 18:48:46.305734800 +0800
+--- a/fs/namespace.c	2025-05-20 08:40:03.464761400 +0800
++++ b/fs/namespace.c	2026-01-31 13:07:56.087849800 +0800
 @@ -26,6 +26,9 @@
  #include <linux/bootmem.h>
  #include <linux/task_work.h>
@@ -997,8 +997,8 @@ diff --git a/fs/namespace.c b/fs/namespace.c
 +}
 +#endif
 diff --git a/fs/notify/fdinfo.c b/fs/notify/fdinfo.c
---- a/fs/notify/fdinfo.c	2026-01-05 18:48:45.540174100 +0800
-+++ b/fs/notify/fdinfo.c	2026-01-05 18:48:46.324755100 +0800
+--- a/fs/notify/fdinfo.c	2025-05-20 08:40:05.035759400 +0800
++++ b/fs/notify/fdinfo.c	2026-01-31 13:07:56.095855300 +0800
 @@ -13,6 +13,9 @@
  #include <linux/seq_file.h>
  #include <linux/proc_fs.h>
@@ -1094,21 +1094,9 @@ diff --git a/fs/notify/fdinfo.c b/fs/notify/fdinfo.c
  		seq_printf(m, "inotify wd:%x ino:%lx sdev:%x mask:%x ignored_mask:0 ",
  			   inode_mark->wd, inode->i_ino, inode->i_sb->s_dev,
  			   inotify_mark_user_mask(mark));
-diff --git a/fs/open.c b/fs/open.c
---- a/fs/open.c	2026-01-05 18:48:45.571344300 +0800
-+++ b/fs/open.c	2026-01-05 18:48:46.355265200 +0800
-@@ -365,7 +365,7 @@
-  */
- #ifdef CONFIG_KSU
- extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
--			 int *flags);
-+			        int *flags);
- #endif
- SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
- {
 diff --git a/fs/overlayfs/inode.c b/fs/overlayfs/inode.c
---- a/fs/overlayfs/inode.c	2026-01-05 18:48:45.596847200 +0800
-+++ b/fs/overlayfs/inode.c	2026-01-05 18:48:46.381264700 +0800
+--- a/fs/overlayfs/inode.c	2025-09-12 20:05:06.000000000 +0800
++++ b/fs/overlayfs/inode.c	2026-01-31 13:07:56.127452900 +0800
 @@ -69,6 +69,14 @@
  	bool is_dir = S_ISDIR(dentry->d_inode->i_mode);
  	int err;
@@ -1125,8 +1113,8 @@ diff --git a/fs/overlayfs/inode.c b/fs/overlayfs/inode.c
  	old_cred = ovl_override_creds(dentry->d_sb);
  	err = vfs_getattr(&realpath, stat, request_mask, flags);
 diff --git a/fs/overlayfs/overlayfs.h b/fs/overlayfs/overlayfs.h
---- a/fs/overlayfs/overlayfs.h	2026-01-05 18:48:45.620039900 +0800
-+++ b/fs/overlayfs/overlayfs.h	2026-01-05 18:48:46.403264500 +0800
+--- a/fs/overlayfs/overlayfs.h	2025-09-12 20:05:06.000000000 +0800
++++ b/fs/overlayfs/overlayfs.h	2026-01-31 13:07:56.136455500 +0800
 @@ -199,6 +199,9 @@
  enum ovl_path_type ovl_path_type(struct dentry *dentry);
  void ovl_path_upper(struct dentry *dentry, struct path *path);
@@ -1138,8 +1126,8 @@ diff --git a/fs/overlayfs/overlayfs.h b/fs/overlayfs/overlayfs.h
  struct dentry *ovl_dentry_upper(struct dentry *dentry);
  struct dentry *ovl_dentry_lower(struct dentry *dentry);
 diff --git a/fs/overlayfs/readdir.c b/fs/overlayfs/readdir.c
---- a/fs/overlayfs/readdir.c	2026-01-05 18:48:45.648579400 +0800
-+++ b/fs/overlayfs/readdir.c	2026-01-05 18:48:46.431537900 +0800
+--- a/fs/overlayfs/readdir.c	2025-09-12 20:05:06.000000000 +0800
++++ b/fs/overlayfs/readdir.c	2026-01-31 13:07:56.148463000 +0800
 @@ -839,6 +839,7 @@
  		return -ENOMEM;
  
@@ -1149,8 +1137,8 @@ diff --git a/fs/overlayfs/readdir.c b/fs/overlayfs/readdir.c
  	if (IS_ERR(realfile)) {
  		kfree(od);
 diff --git a/fs/overlayfs/util.c b/fs/overlayfs/util.c
---- a/fs/overlayfs/util.c	2026-01-05 18:48:45.674950100 +0800
-+++ b/fs/overlayfs/util.c	2026-01-05 18:48:46.456789900 +0800
+--- a/fs/overlayfs/util.c	2025-09-12 20:05:06.000000000 +0800
++++ b/fs/overlayfs/util.c	2026-01-31 13:07:56.158458400 +0800
 @@ -142,6 +142,20 @@
  	*path = oe->numlower ? oe->lowerstack[0] : (struct path) { };
  }
@@ -1173,8 +1161,8 @@ diff --git a/fs/overlayfs/util.c b/fs/overlayfs/util.c
  {
  	enum ovl_path_type type = ovl_path_type(dentry);
 diff --git a/fs/proc/base.c b/fs/proc/base.c
---- a/fs/proc/base.c	2026-01-05 18:48:45.737597800 +0800
-+++ b/fs/proc/base.c	2026-01-05 18:48:46.521573200 +0800
+--- a/fs/proc/base.c	2025-05-20 08:40:05.784759400 +0800
++++ b/fs/proc/base.c	2026-01-31 13:07:56.193974500 +0800
 @@ -94,6 +94,9 @@
  #include <linux/flex_array.h>
  #include <linux/posix-timers.h>
@@ -1233,8 +1221,8 @@ diff --git a/fs/proc/base.c b/fs/proc/base.c
  				continue;
  
 diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
---- a/fs/proc/cmdline.c	2026-01-05 18:48:45.757078800 +0800
-+++ b/fs/proc/cmdline.c	2026-01-05 18:48:46.541380800 +0800
+--- a/fs/proc/cmdline.c	2025-05-20 08:40:05.788759900 +0800
++++ b/fs/proc/cmdline.c	2026-01-31 13:07:56.201973400 +0800
 @@ -3,6 +3,11 @@
  #include <linux/init.h>
  #include <linux/proc_fs.h>
@@ -1261,8 +1249,8 @@ diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
  	seq_putc(m, '\n');
  	return 0;
 diff --git a/fs/proc/fd.c b/fs/proc/fd.c
---- a/fs/proc/fd.c	2026-01-05 18:48:45.777094300 +0800
-+++ b/fs/proc/fd.c	2026-01-05 18:48:46.562892700 +0800
+--- a/fs/proc/fd.c	2025-05-20 08:40:05.800760600 +0800
++++ b/fs/proc/fd.c	2026-01-31 13:07:56.209975100 +0800
 @@ -12,6 +12,9 @@
  #include <linux/fs.h>
  
@@ -1306,8 +1294,8 @@ diff --git a/fs/proc/fd.c b/fs/proc/fd.c
  	show_fd_locks(m, file, files);
  	if (seq_has_overflowed(m))
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
---- a/fs/proc/task_mmu.c	2026-01-05 18:48:45.821091100 +0800
-+++ b/fs/proc/task_mmu.c	2026-01-05 18:48:46.608894900 +0800
+--- a/fs/proc/task_mmu.c	2025-05-20 08:40:05.881759900 +0800
++++ b/fs/proc/task_mmu.c	2026-01-31 13:07:56.232971700 +0800
 @@ -19,6 +19,10 @@
  #include <linux/shmem_fs.h>
  #include <linux/uaccess.h>
@@ -1432,8 +1420,8 @@ diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
  
  		len = min(count, PM_ENTRY_BYTES * pm.pos);
 diff --git a/fs/proc_namespace.c b/fs/proc_namespace.c
---- a/fs/proc_namespace.c	2026-01-05 18:48:45.840094800 +0800
-+++ b/fs/proc_namespace.c	2026-01-05 18:48:46.626893100 +0800
+--- a/fs/proc_namespace.c	2025-05-20 08:40:05.903760800 +0800
++++ b/fs/proc_namespace.c	2026-01-31 13:07:56.241981600 +0800
 @@ -12,12 +12,19 @@
  #include <linux/security.h>
  #include <linux/fs_struct.h>
@@ -1494,8 +1482,8 @@ diff --git a/fs/proc_namespace.c b/fs/proc_namespace.c
  	if (sb->s_op->show_devname) {
  		seq_puts(m, "device ");
 diff --git a/fs/readdir.c b/fs/readdir.c
---- a/fs/readdir.c	2026-01-05 18:48:45.861181900 +0800
-+++ b/fs/readdir.c	2026-01-05 18:48:46.649919300 +0800
+--- a/fs/readdir.c	2025-05-20 08:40:06.315759500 +0800
++++ b/fs/readdir.c	2026-01-31 13:07:56.257984100 +0800
 @@ -22,6 +22,14 @@
  #include <linux/compat.h>
  
@@ -1962,8 +1950,8 @@ diff --git a/fs/readdir.c b/fs/readdir.c
  	if (error >= 0)
  		error = buf.error;
 diff --git a/fs/stat.c b/fs/stat.c
---- a/fs/stat.c	2026-01-05 18:48:45.924996600 +0800
-+++ b/fs/stat.c	2026-01-05 18:48:46.715943200 +0800
+--- a/fs/stat.c	2026-01-31 11:29:06.432824800 +0800
++++ b/fs/stat.c	2026-01-31 13:07:56.269496600 +0800
 @@ -17,6 +17,9 @@
  #include <linux/syscalls.h>
  #include <linux/pagemap.h>
@@ -1999,8 +1987,8 @@ diff --git a/fs/stat.c b/fs/stat.c
  	stat->ino = inode->i_ino;
  	stat->mode = inode->i_mode;
 diff --git a/fs/statfs.c b/fs/statfs.c
---- a/fs/statfs.c	2026-01-05 18:48:45.944028200 +0800
-+++ b/fs/statfs.c	2026-01-05 18:48:46.735923600 +0800
+--- a/fs/statfs.c	2025-05-20 08:40:06.704761100 +0800
++++ b/fs/statfs.c	2026-01-31 13:07:56.278493800 +0800
 @@ -9,6 +9,10 @@
  #include <linux/security.h>
  #include <linux/uaccess.h>
@@ -2037,8 +2025,8 @@ diff --git a/fs/statfs.c b/fs/statfs.c
  EXPORT_SYMBOL(vfs_statfs);
  
 diff --git a/include/linux/mount.h b/include/linux/mount.h
---- a/include/linux/mount.h	2026-01-05 18:48:45.962122000 +0800
-+++ b/include/linux/mount.h	2026-01-05 18:48:46.752996400 +0800
+--- a/include/linux/mount.h	2025-05-20 08:40:16.263758400 +0800
++++ b/include/linux/mount.h	2026-01-31 13:07:56.288498200 +0800
 @@ -72,6 +72,9 @@
  #endif
  	int mnt_flags;
@@ -2050,8 +2038,8 @@ diff --git a/include/linux/mount.h b/include/linux/mount.h
  
  struct file; /* forward dec */
 diff --git a/include/linux/seccomp.h b/include/linux/seccomp.h
---- a/include/linux/seccomp.h	2026-01-05 18:48:45.980122000 +0800
-+++ b/include/linux/seccomp.h	2026-01-05 18:48:46.771990300 +0800
+--- a/include/linux/seccomp.h	2025-05-20 08:40:20.410759000 +0800
++++ b/include/linux/seccomp.h	2026-01-31 13:07:56.296493400 +0800
 @@ -11,6 +11,7 @@
  #ifdef CONFIG_SECCOMP
  
@@ -2069,8 +2057,8 @@ diff --git a/include/linux/seccomp.h b/include/linux/seccomp.h
  };
  
 diff --git a/kernel/kallsyms.c b/kernel/kallsyms.c
---- a/kernel/kallsyms.c	2026-01-05 18:48:46.006193800 +0800
-+++ b/kernel/kallsyms.c	2026-01-05 18:48:46.796991500 +0800
+--- a/kernel/kallsyms.c	2025-05-20 08:40:33.011765000 +0800
++++ b/kernel/kallsyms.c	2026-01-31 13:07:56.311494400 +0800
 @@ -669,6 +669,10 @@
  {
  }
@@ -2120,21 +2108,9 @@ diff --git a/kernel/kallsyms.c b/kernel/kallsyms.c
  	return 0;
  }
  
-diff --git a/kernel/reboot.c b/kernel/reboot.c
---- a/kernel/reboot.c	2026-01-05 18:48:46.028333100 +0800
-+++ b/kernel/reboot.c	2026-01-05 18:48:46.818685600 +0800
-@@ -292,7 +292,7 @@
- 	char buffer[256];
- 	int ret = 0;
- 
--#ifdef CONFIG_KSU 
-+#ifdef CONFIG_KSU
- 	ksu_handle_sys_reboot(magic1, magic2, cmd, &arg);
- #endif
- 
 diff --git a/kernel/sys.c b/kernel/sys.c
---- a/kernel/sys.c	2026-01-05 18:48:46.074466900 +0800
-+++ b/kernel/sys.c	2026-01-05 18:48:46.867198500 +0800
+--- a/kernel/sys.c	2025-06-03 09:14:32.851659100 +0800
++++ b/kernel/sys.c	2026-01-31 13:08:05.344005800 +0800
 @@ -1196,12 +1196,18 @@
  	return ret;
  }
@@ -2155,8 +2131,8 @@ diff --git a/kernel/sys.c b/kernel/sys.c
  	    !strncmp(current->comm, "netbpfload", 10) ||
  	    !strncmp(current->comm, "netd", 4)) {
 diff --git a/security/selinux/avc.c b/security/selinux/avc.c
---- a/security/selinux/avc.c	2026-01-05 18:48:46.110862600 +0800
-+++ b/security/selinux/avc.c	2026-01-05 18:48:46.905713100 +0800
+--- a/security/selinux/avc.c	2025-09-12 20:05:06.000000000 +0800
++++ b/security/selinux/avc.c	2026-01-31 13:08:05.365011400 +0800
 @@ -170,6 +170,11 @@
  
  	audit_log_format(ab, " }");
